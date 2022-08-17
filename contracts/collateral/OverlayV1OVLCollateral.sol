@@ -236,7 +236,7 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
     /**
       @notice Build a position on Overlay with OVL collateral
-      @dev This interacts with an Overlay Market to register oi and hold 
+      @dev This interacts with an Overlay Market to register oi and hold
       positions on behalf of users.
       @dev Build event emitted
       @param _market The address of the desired market to interact with
@@ -336,14 +336,18 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         emit Unwind(pos.market, _positionId, _userOi, _userDebt);
 
-        // TODO: think through edge case of underwater position ... and fee adjustments ...
         uint _feeAmount = _userNotional.mulUp(mothership.fee());
 
         uint _userValueAdjusted = _userNotional - _feeAmount;
-        if (_userValueAdjusted > _userDebt) _userValueAdjusted -= _userDebt;
-        else _userValueAdjusted = 0;
+        if (_userValueAdjusted > _userDebt) {
+            _userValueAdjusted -= _userDebt;
+        } else {
+            // underwater position set to zero value with fees lowered appropriately
+            _userValueAdjusted = 0;
+            _feeAmount = _userNotional > _userDebt ? _userNotional - _userDebt : 0;
+        }
 
-        fees += _feeAmount; // adds to fee pot, which is transferred on update
+        fees += _feeAmount; // adds to fee pot, which is transferred on disburse
 
         pos.debt -= _userDebt;
         pos.cost -= _userCost;
@@ -355,16 +359,16 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         if (_userCost < _userValueAdjusted) {
 
             ovl.transferMint(
-                msg.sender, 
-                _userCost, 
+                msg.sender,
+                _userCost,
                 _userValueAdjusted - _userCost
             );
 
         } else {
 
             ovl.transferBurn(
-                msg.sender, 
-                _userValueAdjusted, 
+                msg.sender,
+                _userValueAdjusted,
                 _userCost - _userValueAdjusted
             );
 
