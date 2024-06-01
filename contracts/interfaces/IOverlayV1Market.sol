@@ -108,12 +108,13 @@ interface IOverlayV1Market is IERC1155 {
     function enterOI (
         bool _isLong,
         uint _collateral,
-        uint _leverage
+        uint _leverage,
+        uint _fee
     ) external returns (
         uint oiAdjusted_,
         uint collateralAdjusted_,
         uint debtAdjusted_,
-        uint fee_,
+        uint exactedFee_,
         uint impact_,
         uint pricePointNext_
     );

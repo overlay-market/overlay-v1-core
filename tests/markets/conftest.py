@@ -270,9 +270,10 @@ def comptroller(gov, feed_infos, token, feed_owner):
             BRRRR_WINDOW_MICRO   # brrrr window micro - accumulator window
          ],
          "OverlayV1OVLCollateral", [
-             .06e18,             # margin maintenance
-             .5e18,              # margin reward rate
+             .0015e18,           # fee
              100,                # max leverage
+             .5e18,              # margin reward rate
+             .06e18,             # margin maintenance
          ],
          get_uni_feeds,
         ),
@@ -314,9 +315,10 @@ def create_mothership(token, feed_infos, fees, alice, bob, gov, feed_owner,
                    [int]:   Accumulator window - brrrr window micro
           ovlc_name [str]:  OverlayV1OVLCollateral contract name
           ovlc_args:
-                   [int]:   maintenance margin [uint]
+                   [int]:   fee                [uint]
+                   [int]:   max leverage       [uint]
                    [int]:   margin reward rate [uint]
-                   [int]:   max leverage
+                   [int]:   maintenance margin [uint]
           get_uni_feeds []: TODO
 
     Output:
@@ -385,8 +387,10 @@ def create_mothership(token, feed_infos, fees, alice, bob, gov, feed_owner,
         ovl_collateral = gov.deploy(ovlc_type, "our_uri", mothership)
 
         # Governor sets the market information which includes the maintenance
-        # margin, margin reward rate, and max leverage
-        ovl_collateral.setMarketInfo(market, *ovlc_args, {"from": gov})
+        # fee, max leverage, margin reward rate, margin
+        ovl_collateral.addMarket(market, *ovlc_args, {"from": gov})
+
+        print("OVLC ARGS", ovlc_args)
 
         # Governor makes call to mothership contract, making it aware of the
         # new collateral contract

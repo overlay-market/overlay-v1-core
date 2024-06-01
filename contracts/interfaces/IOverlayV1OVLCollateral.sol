@@ -77,6 +77,12 @@ interface IOverlayV1OVLCollateral is IERC1155 {
         uint _maxLeverage
     ) external;
 
+    function marketIndexes (
+        address _market
+    ) external view returns (
+        uint marketIx_
+    );
+
     function marginMaintenance(
         address _market
     ) external view returns (

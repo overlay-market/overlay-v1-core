@@ -20,13 +20,24 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
     bytes32 constant private GOVERNOR = keccak256("GOVERNOR");
 
-    mapping (address => mapping(uint => uint)) internal currentBlockPositionsLong;
-    mapping (address => mapping(uint => uint)) internal currentBlockPositionsShort;
-    mapping (address => MarketInfo) public marketInfo;
-    struct MarketInfo {
-        uint marginMaintenance;
-        uint marginRewardRate;
-        uint maxLeverage;
+    mapping (uint => mapping(uint => uint)) internal currentBlockPositionsLong;
+    mapping (uint => mapping(uint => uint)) internal currentBlockPositionsShort;
+
+    Market[] public marketLineup;
+    MarketLiq[] public marketLiqLineup;
+    mapping (address => uint) public marketIndexes;
+
+    struct Market {
+        address market;
+        bool active;
+        uint24 fee;
+        uint24 maxLeverage;
+    }
+
+    struct MarketLiq {
+        address market;
+        uint24 marginRewardRate;
+        uint24 marginMaintenance;
     }
 
     Position.Info[] public positions;
@@ -86,7 +97,7 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         ovl = IOverlayV1Mothership(_mothership).ovl();
 
         positions.push(Position.Info({
-            market: address(0),
+            market: 0,
             isLong: false,
             leverage: 0,
             pricePoint: 0,
@@ -95,63 +106,131 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
             cost: 0
         }));
 
+        marketLineup.push( Market({
+            market: address(0), 
+            active: false,
+            fee: 0, 
+            maxLeverage: 0
+        }));
+
+        marketLiqLineup.push( MarketLiq({
+            market: address(0), 
+            marginMaintenance: 0, 
+            marginRewardRate: 0
+        }));
+
     }
 
-    /**
-      @notice Sets market information
-      @dev Only the Governor can set market info
-      @dev Adds market information to the `marketInfo` mapping
-      @param _market Overlay Market contract address
-      @param _marginMaintenance maintenance margin
-      @param _marginRewardRate margin reward rate
-      @param _maxLeverage maximum leverage amount
-      */
-    function setMarketInfo (
-        address _market,
-        uint _marginMaintenance,
+    function addMarket (
+        address _marketAddress,
+        uint _fee,
+        uint _maxLeverage,
         uint _marginRewardRate,
-        uint _maxLeverage
+        uint _marginMaintenance
     ) external onlyGovernor {
 
+        uint _index = marketIndexes[_marketAddress];
 
-        marketInfo[_market].marginMaintenance = _marginMaintenance;
-        marketInfo[_market].marginRewardRate = _marginRewardRate;
-        marketInfo[_market].maxLeverage = _maxLeverage;
+        require(_index == 0, "OVLV1:!!market");
 
-        // TODO: Fire and event when new market info is set - yes
+        _index = marketLineup.length;
+
+        marketLineup.push( Market({
+            market: _marketAddress,
+            active: true,
+            fee: uint24(_fee / 1e12), 
+            maxLeverage: uint24(_maxLeverage)
+        }));
+
+        marketLiqLineup.push( MarketLiq({
+            market: _marketAddress,
+            marginRewardRate: uint24(_marginRewardRate / 1e12),
+            marginMaintenance: uint24(_marginMaintenance / 1e12)
+        }));
+
+        marketIndexes[_marketAddress] = _index;
 
     }
 
-    function marginMaintenance(
-        address _market
-    ) external view returns (
-        uint marginMaintenance_
+    function setMarketInfo (
+        address _marketAddress,
+        uint _fee,
+        uint _maxLeverage,
+        uint _marginRewardRate,
+        uint _marginMaintenance
+    ) external onlyGovernor {
+
+        uint _index = marketIndexes[_marketAddress];
+
+        Market memory _market = marketLineup[_index];
+        MarketLiq memory _marketLiq = marketLiqLineup[_index];
+
+        _market.fee = uint24(_fee / 1e12);
+        _market.maxLeverage = uint24(_maxLeverage);
+
+        _marketLiq.marginRewardRate = uint24(_marginRewardRate / 1e12);
+        _marketLiq.marginMaintenance = uint24(_marginMaintenance / 1e12);
+
+        marketLineup[_index] = _market;
+        marketLiqLineup[_index] = _marketLiq;
+
+    }
+
+    function marketLineupLength () public view returns (
+        uint length_
     ) {
 
-        marginMaintenance_ = marketInfo[_market].marginMaintenance;
+        length_ = marketLineup.length;
 
     }
 
-    function maxLeverage(
+    function fee (
+        address _market
+    ) external view returns (
+        uint fee_
+    ) {
+
+        fee_ = uint(marketLineup[
+            marketIndexes[_market]
+        ].fee) * 1e12;
+
+    }
+
+    function maxLeverage (
         address _market
     ) external view returns (
         uint maxLeverage_
     ) {
 
-        maxLeverage_ = marketInfo[_market].maxLeverage;
+        maxLeverage_ = marketLineup[
+            marketIndexes[_market]
+        ].maxLeverage;
 
     }
 
-    function marginRewardRate(
+    function marginRewardRate (
         address _market
     ) external view returns (
         uint marginRewardRate_
     ) {
 
-        marginRewardRate_ = marketInfo[_market].marginRewardRate;
+        marginRewardRate_ = uint(marketLiqLineup[
+            marketIndexes[_market]
+        ].marginRewardRate) * 1e12;
 
     }
 
+    function marginMaintenance (
+        address _market
+    ) external view returns (
+        uint marginMaintenance_
+    ) {
+
+        marginMaintenance_ = uint(marketLiqLineup[
+            marketIndexes[_market]
+        ].marginMaintenance) * 1e12;
+
+    }
 
     /// @notice Disburses fees
     function disburse () public {
@@ -184,7 +263,7 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
     }
 
     function getCurrentBlockPositionId (
-        address _market,
+        uint _market,
         bool _isLong,
         uint _leverage,
         uint _pricePointNext
@@ -216,10 +295,10 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         if  (position.pricePoint < _pricePointNext) {
 
             positions.push(Position.Info({
-                market: _market,
+                market: uint8(_market),
                 isLong: _isLong,
-                leverage: _leverage,
-                pricePoint: _pricePointNext,
+                leverage: uint16(_leverage),
+                pricePoint: uint32(_pricePointNext),
                 oiShares: 0,
                 debt: 0,
                 cost: 0
@@ -233,18 +312,6 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
     }
 
-
-    /**
-      @notice Build a position on Overlay with OVL collateral
-      @dev This interacts with an Overlay Market to register oi and hold 
-      positions on behalf of users.
-      @dev Build event emitted
-      @param _market The address of the desired market to interact with
-      @param _collateral The amount of OVL to use as collateral in the position
-      @param _leverage The amount of leverage to use in the position
-      @param _isLong Whether to take out a position on the long or short side
-      @return positionId_ Id of the built position for on chain convenience
-     */
     function build (
         address _market,
         uint256 _collateral,
@@ -255,25 +322,60 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         uint positionId_
     ) {
 
-        require(mothership.marketActive(_market), "OVLV1:!market");
-        require(_leverage <= marketInfo[_market].maxLeverage, "OVLV1:lev>max");
+        return _build(
+            marketIndexes[_market],
+            _collateral,
+            _leverage,
+            _isLong,
+            _oiMinimum
+        );
+
+    }
+
+
+    /**
+      @notice Build a position on Overlay with OVL collateral
+      @dev This interacts with an Overlay Market to register oi and hold 
+      positions on behalf of users.
+      @dev Build event emitted
+      @param _marketIx The index in the market lineup of the desired market to interact with
+      @param _collateral The amount of OVL to use as collateral in the position
+      @param _leverage The amount of leverage to use in the position
+      @param _isLong Whether to take out a position on the long or short side
+      @return positionId_ Id of the built position for on chain convenience
+     */
+    function _build (
+        uint256 _marketIx,
+        uint256 _collateral,
+        uint256 _leverage,
+        bool _isLong,
+        uint256 _oiMinimum
+    ) internal returns (
+        uint positionId_
+    ) {
+
+        Market memory _market = marketLineup[_marketIx];
+
+        require(_market.active, "OVLV1:!market");
+        require(_leverage <= _market.maxLeverage, "OVLV1:lev>max");
 
         (   uint _oiAdjusted,
             uint _collateralAdjusted,
             uint _debtAdjusted,
-            uint _fee,
+            uint _exactedFee,
             uint _impact,
-            uint _pricePointNext ) = IOverlayV1Market(_market)
+            uint _pricePointNext ) = IOverlayV1Market(_market.market)
                 .enterOI(
                     _isLong,
                     _collateral,
-                    _leverage
+                    _leverage,
+                    uint(_market.fee) * 1e12
                 );
 
         require(_oiAdjusted >= _oiMinimum, "OVLV1:oi<min");
 
         uint _positionId = getCurrentBlockPositionId(
-            _market,
+            _marketIx,
             _isLong,
             _leverage,
             _pricePointNext
@@ -281,15 +383,15 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         Position.Info storage pos = positions[_positionId];
 
-        pos.oiShares += _oiAdjusted;
-        pos.cost += _collateralAdjusted;
-        pos.debt += _debtAdjusted;
+        pos.oiShares += uint112(_oiAdjusted);
+        pos.cost += uint112(_collateralAdjusted);
+        pos.debt += uint112(_debtAdjusted);
 
-        fees += _fee;
+        fees += _exactedFee;
 
-        emit Build(_market, _positionId, _oiAdjusted, _debtAdjusted);
+        emit Build(_market.market, _positionId, _oiAdjusted, _debtAdjusted);
 
-        ovl.transferFromBurn(msg.sender, address(this), _collateralAdjusted + _fee, _impact);
+        ovl.transferFromBurn(msg.sender, address(this), _collateralAdjusted + _exactedFee, _impact);
 
         // ovl.burn(msg.sender, _impact);
 
@@ -314,13 +416,15 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         Position.Info storage pos = positions[_positionId];
 
+        Market memory _market = marketLineup[pos.market];
+
         require(0 < pos.oiShares, "OVLV1:liquidated");
 
         {
 
         (   uint _oi,
             uint _oiShares,
-            uint _priceFrame ) = IOverlayV1Market(pos.market)
+            uint _priceFrame ) = IOverlayV1Market(_market.market)
                 .exitData(
                     pos.isLong,
                     pos.pricePoint
@@ -334,10 +438,10 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         uint _userCost = _shares * pos.cost / _totalPosShares;
         uint _userOi = _shares * pos.oi(_oi, _oiShares) / _totalPosShares;
 
-        emit Unwind(pos.market, _positionId, _userOi, _userDebt);
+        emit Unwind(_market.market, _positionId, _userOi, _userDebt);
 
         // TODO: think through edge case of underwater position ... and fee adjustments ...
-        uint _feeAmount = _userNotional.mulUp(mothership.fee());
+        uint _feeAmount = _userNotional.mulUp(uint(_market.fee) * 1e12);
 
         uint _userValueAdjusted = _userNotional - _feeAmount;
         if (_userValueAdjusted > _userDebt) _userValueAdjusted -= _userDebt;
@@ -345,9 +449,9 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         fees += _feeAmount; // adds to fee pot, which is transferred on update
 
-        pos.debt -= _userDebt;
-        pos.cost -= _userCost;
-        pos.oiShares -= _userOiShares;
+        pos.debt -= uint112(_userDebt);
+        pos.cost -= uint112(_userCost);
+        pos.oiShares -= uint112(_userOiShares);
 
         // ovl.transfer(msg.sender, _userCost);
 
@@ -371,7 +475,7 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         }
 
 
-        IOverlayV1Market(pos.market).exitOI(
+        IOverlayV1Market(_market.market).exitOI(
             pos.isLong,
             _userOi,
             _userOiShares,
@@ -401,28 +505,28 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         require(0 < pos.oiShares, "OVLV1:liquidated");
 
+        MarketLiq memory _marketLiq = marketLiqLineup[pos.market];
+
         bool _isLong = pos.isLong;
 
         (   uint _oi,
             uint _oiShares,
-            uint _priceFrame ) = IOverlayV1Market(pos.market)
+            uint _priceFrame ) = IOverlayV1Market(_marketLiq.market)
                 .exitData(
                     _isLong,
                     pos.pricePoint
                 );
 
-        MarketInfo memory _marketInfo = marketInfo[pos.market];
-
         require(pos.isLiquidatable(
             _oi,
             _oiShares,
             _priceFrame,
-            _marketInfo.marginMaintenance
+            uint(_marketLiq.marginMaintenance) * 1e12
         ), "OVLV1:!liquidatable");
 
         uint _value = pos.value(_oi, _oiShares, _priceFrame);
 
-        IOverlayV1Market(pos.market).exitOI(
+        IOverlayV1Market(_marketLiq.market).exitOI(
             _isLong,
             pos.oi(_oi, _oiShares),
             pos.oiShares,
@@ -435,7 +539,8 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
         pos.debt = 0;
         // positions[positionId].oiShares = 0;
 
-        uint _toReward = _value.mulUp(_marketInfo.marginRewardRate);
+
+        uint _toReward = _value.mulUp(uint(_marketLiq.marginRewardRate) * 1e12);
 
         liquidations += _value - _toReward;
 
@@ -468,11 +573,11 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
 
         Position.Info storage pos = positions[_positionId];
 
-        IOverlayV1Market _market = IOverlayV1Market(pos.market);
+        Market memory _market = marketLineup[pos.market];
 
         (   uint _oi,
             uint _oiShares,
-            uint _priceFrame ) = _market
+            uint _priceFrame ) = IOverlayV1Market(_market.market)
             .positionInfo(
                 pos.isLong,
                 pos.pricePoint

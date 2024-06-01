@@ -482,6 +482,10 @@ def test_liquidate_with_funding(
     _ = ovl_collateral.liquidate(pos_id, alice, {'from': alice})
     exit_bid, exit_ask, _ = market.pricePoints(
         market.pricePointNextIndex() - 1)
+
+    print("margin maintenance", margin_maintenance)
+    print("pos oi shares", pos_oi_shares)
+
     assert pos_val < margin_maintenance * pos_oi_shares
 
     # check alice oi still there
