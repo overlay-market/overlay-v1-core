@@ -81,7 +81,6 @@ function _revert(uint256 errorCode) pure {
 }
 
 library Errors {
-    // Math
     uint256 internal constant ADD_OVERFLOW = 0;
     uint256 internal constant SUB_OVERFLOW = 1;
     uint256 internal constant SUB_UNDERFLOW = 2;
@@ -144,7 +143,9 @@ library Errors {
     uint256 internal constant SWAPS_DISABLED = 327;
     uint256 internal constant CALLER_IS_NOT_LBP_OWNER = 328;
     uint256 internal constant PRICE_RATE_OVERFLOW = 329;
-    uint256 internal constant INVALID_JOIN_EXIT_KIND_WHILE_SWAPS_DISABLED = 330;
+    uint256 internal constant ORACLE_BUFFER_NOT_GT_CURRENT_SIZE = 330;
+    uint256 internal constant ORACLE_BUFFER_SIZE_TOO_LARGE = 331;
+    uint256 internal constant ORACLE_SAMPLE_DURATION_TOO_LONG = 332;
 
     // Lib
     uint256 internal constant REENTRANCY = 400;
@@ -214,4 +215,5 @@ library Errors {
     uint256 internal constant SWAP_FEE_PERCENTAGE_TOO_HIGH = 600;
     uint256 internal constant FLASH_LOAN_FEE_PERCENTAGE_TOO_HIGH = 601;
     uint256 internal constant INSUFFICIENT_FLASH_LOAN_FEE_AMOUNT = 602;
+
 }
