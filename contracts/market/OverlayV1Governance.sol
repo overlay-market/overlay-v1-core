@@ -125,8 +125,8 @@ abstract contract OverlayV1Governance is
         lmbda = _lmbda;
         staticCap = _staticCap;
         brrrrdExpected = _brrrrExpected;
-        brrrrdWindowMacro = _brrrrdWindowMacro;
-        brrrrdWindowMicro = _brrrrdWindowMicro;
+        brrrrdWindowMacro = uint32(_brrrrdWindowMacro);
+        brrrrdWindowMicro = uint32(_brrrrdWindowMicro);
 
     }
 

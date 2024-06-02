@@ -58,8 +58,8 @@ contract ComptrollerShim is OverlayV1Comptroller {
         lmbda = _lmbda;
         staticCap = _staticCap;
         brrrrdExpected = _brrrrdExpected;
-        brrrrdWindowMacro = _brrrrdWindowMacro;
-        brrrrdWindowMicro = _brrrrdWindowMicro;
+        brrrrdWindowMacro = uint32(_brrrrdWindowMacro);
+        brrrrdWindowMicro = uint32(_brrrrdWindowMicro);
         macroWindow = _priceWindowMacro;
         microWindow = _priceWindowMicro;
         marketFeed = _marketFeed;
@@ -134,9 +134,9 @@ contract ComptrollerShim is OverlayV1Comptroller {
         uint __shortPressure
     ) public {
 
-        impactRollers[index].time = __timestamp;
-        impactRollers[index].ying = __longPressure;
-        impactRollers[index].yang = __shortPressure;
+        impactRollers[index].time = uint32(__timestamp);
+        impactRollers[index].ying = uint112(__longPressure);
+        impactRollers[index].yang = uint112(__shortPressure);
 
     }
 
@@ -151,8 +151,12 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
         (   lastMoment,
             rollerNow_,
-            rollerThen_ ) = scry(impactRollers, impactCycloid, _ago);
-
+            rollerThen_ ) = scry(
+                getImpactRoller, 
+                impactChord,
+                impactCycloid, 
+                uint32(_ago)
+            );
 
     }
 
