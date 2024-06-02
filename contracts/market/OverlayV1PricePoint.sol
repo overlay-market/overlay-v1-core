@@ -44,7 +44,7 @@ abstract contract OverlayV1PricePoint {
     /// @dev Called by `OverlayV1Market` contract function: `update`
     function fetchPricePoint () public view virtual returns (PricePoint memory);
 
-    function _tickToPrice (int24 _tick) public virtual view returns (uint quote_);
+    function _tickToPrice (int24 _tick) internal virtual view returns (uint quote_);
 
 
     /// @notice Get the index of the next price to be realized
@@ -137,13 +137,13 @@ abstract contract OverlayV1PricePoint {
 
         _pricePoints.push(_pricePoint);
 
-        (   uint _bid, 
-            uint _ask,  
+        (   uint _bid,
+            uint _ask,
             uint _depth ) = readPricePoint(_pricePoint);
 
         emit NewPricePoint(
-            _bid, 
-            _ask, 
+            _bid,
+            _ask,
             _depth
         );
 

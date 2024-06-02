@@ -2,8 +2,6 @@
 pragma solidity ^0.8.7;
 
 import "../interfaces/IOverlayV1Mothership.sol";
-import "../interfaces/IOverlayToken.sol";
-import "../interfaces/IOverlayTokenNew.sol";
 import "./OverlayV1Comptroller.sol";
 import "./OverlayV1OI.sol";
 import "./OverlayV1PricePoint.sol";

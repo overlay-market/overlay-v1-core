@@ -208,6 +208,9 @@ def test_unwind_expected_fee(
     notional = val + debt_pos
 
     fee = notional * (mothership.fee() / 1e18)
+    if notional - debt_pos < fee:
+        # lower fee is position is underwater (value < 0)
+        fee = notional - debt_pos
 
     fees_now = ovl_collateral.fees() / 1e18
 
@@ -467,10 +470,11 @@ def test_unwind_pnl_mint_burn(
 
     (oi, oi_shares, price_frame) = market.positionInfo(is_long, price_point)
 
-    # Unwind position
-
+    # State prior to unwind
     exit_price_ix = market.pricePointNextIndex()
+    fees_prior = ovl_collateral.fees()
 
+    # Unwind position
     tx_unwind = ovl_collateral.unwind(
         pid,
         bob_balance,
@@ -498,18 +502,21 @@ def test_unwind_pnl_mint_burn(
         val = oi_pos * 2
         val = val - min(val, debt_pos + oi_pos * price_frame)
 
-    notional = val + debt_pos
-
-    fee = notional * (mothership.fee() / 1e18)
-
     # Other metrics
     debt = bob_balance * (debt_pos/total_pos_shares)
     cost = bob_balance * (cost_pos/total_pos_shares)
 
-    value_adjusted = notional - fee
+    notional = val + debt
 
-    value_adjusted = value_adjusted - debt if value_adjusted > debt else 0
+    # divide by 1e18 since mothership.fee() is a fraction
+    fee = notional * (mothership.fee() / 1e18)
 
+    value_adjusted = notional - debt - fee
+    if notional - debt < fee:
+        value_adjusted = 0
+        fee = notional - debt if notional > debt else 0
+
+    # check expected pnl matches actual
     exp_pnl = value_adjusted - cost
 
     for _, v in enumerate(tx_unwind.events['Transfer']):
@@ -519,3 +526,7 @@ def test_unwind_pnl_mint_burn(
             act_pnl = v['value']
 
     assert exp_pnl == approx(act_pnl)
+
+    # check fees added
+    fees_now = ovl_collateral.fees()
+    assert fee + fees_prior == approx(fees_now)

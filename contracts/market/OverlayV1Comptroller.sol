@@ -315,7 +315,7 @@ abstract contract OverlayV1Comptroller {
         // Calls internal contract function
         cap_ = _surpassed ? 0 : _burnt || _expected
             ? _oiCap(false, depth(), staticCap, 0, 0)
-            : _oiCap(true, depth(), staticCap, _brrrrd, brrrrdExpected);
+            : _oiCap(true, depth(), staticCap, _brrrrd, _brrrrdExpected);
 
     }
 
@@ -405,25 +405,11 @@ abstract contract OverlayV1Comptroller {
 
         if (_roller.time != _lastMoment) {
 
-            _cycloid += 1;
-
-            if (_cycloid < CHORD) {
-
-                rollers[_cycloid] = _roller;
-
-            } else {
-
-                _cycloid = 0;
-
-                rollers[_cycloid] = _roller;
-
-            }
-
-        } else {
-
-            rollers[_cycloid] = _roller;
+             _cycloid = (_cycloid + 1) % CHORD;
 
         }
+
+        rollers[_cycloid] = _roller;
 
         cycloid_ = _cycloid;
 

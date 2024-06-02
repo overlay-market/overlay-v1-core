@@ -77,9 +77,10 @@ def test_create_mothership(mothership, gov):
     margin_burn_rate = 0.5e18
     fee_burn_rate = 0.5e18
     fee_to = '0x46C0a5326E643E4f71D3149d50B48216e174Ae84'
-    expect = (margin_burn_rate, fee_burn_rate, fee_to)
+    fee = 0.0015e18
+    expect = (fee_to, fee, fee_burn_rate, margin_burn_rate)
 
-    actual = mothership.getUpdateParams()
+    actual = mothership.getGlobalParams()
     assert actual == expect
 
     #  eth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"

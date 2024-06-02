@@ -2,12 +2,11 @@
 pragma solidity ^0.8.7;
 
 import "./IOverlayToken.sol";
-import "./IOverlayTokenNew.sol";
 
 interface IOverlayV1Mothership {
 
     function ovl () external view returns (
-        IOverlayTokenNew ovl_
+        IOverlayToken ovl_
     );
 
     function marketActive(
@@ -40,7 +39,7 @@ interface IOverlayV1Mothership {
         bool
     );
 
-    function allCollateral(
+    function allCollaterals(
         uint collateralIndex
     ) external view returns (
         address collateralAddress
@@ -51,34 +50,13 @@ interface IOverlayV1Mothership {
     );
 
     function getGlobalParams() external view returns (
-        uint16 fee_,
-        uint16 feeBurnRate_,
         address feeTo_,
-        uint8 marginMaintenance_,
-        uint8 marginBurnRate_
-    );
-
-    function getUpdateParams() external view returns (
-        uint marginBurnRate_,
+        uint fee_,
         uint feeBurnRate_,
-        address feeTo_
-    );
-
-    function getMarginParams() external view returns (
-        uint marginMaintenance_,
-        uint marginRewardRate_
+        uint marginBurnRate_
     );
 
     function fee() external view returns (uint256);
-
-    function updateMarket(
-        address _market,
-        address _rewardsTo
-    ) external;
-
-    function massUpdateMarkets(
-        address _rewardsTo
-    ) external;
 
     function hasRole(
         bytes32 _role,
@@ -86,5 +64,10 @@ interface IOverlayV1Mothership {
     ) external view returns (
         bool
     );
+
+    function setFeeTo(address _feeTo) external;
+    function setFee(uint _fee) external;
+    function setFeeBurnRate(uint _feeBurnRate) external;
+    function setMarginBurnRate(uint _marginBurnRate) external;
 
 }

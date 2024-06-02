@@ -7,31 +7,27 @@ import "../OverlayToken.sol";
 
 contract OverlayV1Mothership is AccessControlEnumerable {
 
-    uint16 public constant MIN_FEE = 1; // 0.01%
-    uint16 public constant MAX_FEE = 100; // 1.00%
+    uint public constant MIN_FEE = 1e14; // 0.01%
+    uint public constant MAX_FEE = 1e16; // 1.00%
 
-    uint16 public constant MIN_MARGIN_MAINTENANCE = 100; // 1% maintenance
-    uint16 public constant MAX_MARGIN_MAINTENANCE = 6000; // 60% maintenance
+    uint public constant MAX_FEE_BURN = 1e18; // 100%
+    uint public constant MAX_MARGIN_BURN = 1e18; // 100%
 
     bytes32 public constant ADMIN = 0x00;
     bytes32 public constant GOVERNOR = keccak256("GOVERNOR");
-    bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
-    bytes32 public constant MINTER = keccak256("MINTER");
-    bytes32 public constant BURNER = keccak256("BURNER");
 
     // ovl erc20 token
-    address public ovl;
-
-    // portion of liquidations to burn on update
-    uint public marginBurnRate;
+    address public immutable ovl;
 
     // global params adjustable by gov
+    // address to send fees to
+    address public feeTo;
     // build/unwind trading fee
     uint public fee;
     // portion of build/unwind fee burnt
     uint public feeBurnRate;
-    // address to send fees to
-    address public feeTo;
+    // portion of liquidations to burn on update
+    uint public marginBurnRate;
 
     mapping(address => bool) public marketActive;
     mapping(address => bool) public marketExists;
@@ -39,19 +35,23 @@ contract OverlayV1Mothership is AccessControlEnumerable {
 
     mapping(address => bool) public collateralExists;
     mapping(address => bool) public collateralActive;
-    address[] public allCollateral;
+    address[] public allCollaterals;
+
+    event UpdateCollateral(address collateral, bool active);
+    event UpdateMarket(address market, bool active);
+
+    event UpdateFeeTo(address feeTo);
+    event UpdateFee(uint fee);
+    event UpdateFeeBurnRate(uint feeBurnRate);
+    event UpdateMarginBurnRate(uint marginBurnRate);
 
     modifier onlyGovernor () {
         require(hasRole(GOVERNOR, msg.sender), "OVLV1:!gov");
         _;
     }
 
-    modifier onlyGuardian () {
-        require(hasRole(GUARDIAN, msg.sender), "OVLV1:!guard");
-        _;
-    }
-
     constructor(
+        address _ovl,
         address _feeTo,
         uint _fee,
         uint _feeBurnRate,
@@ -60,65 +60,59 @@ contract OverlayV1Mothership is AccessControlEnumerable {
 
         _setupRole(ADMIN, msg.sender);
         _setupRole(GOVERNOR, msg.sender);
-        _setupRole(GUARDIAN, msg.sender);
         _setRoleAdmin(GOVERNOR, ADMIN);
-        _setRoleAdmin(GUARDIAN, ADMIN);
 
-        // global params
-        fee = _fee;
-        feeBurnRate = _feeBurnRate;
-        feeTo = _feeTo;
-        marginBurnRate = _marginBurnRate;
-
-    }
-
-    function setOVL (address _ovl) external onlyGovernor {
-
+        // immutable params
         ovl = _ovl;
 
+        // global params
+        _setFeeTo(_feeTo);
+        _setFee(_fee);
+        _setFeeBurnRate(_feeBurnRate);
+        _setMarginBurnRate(_marginBurnRate);
     }
 
     function totalMarkets () external view returns (uint) {
         return allMarkets.length;
     }
 
+    function totalCollaterals () external view returns (uint) {
+        return allCollaterals.length;
+    }
 
     /**
       @notice Make this contract aware of a new market contract's existence
       @dev Should be called after contract deployment in specific market factory.createMarket
       @dev Only the Governor can initialize a market
       @dev Appends new market address to `allMarkets` array to track them
-      @param market Overlay market contract address
+      @param _market Overlay market contract address
       */
-    function initializeMarket(address market) external onlyGovernor {
+    function initializeMarket(address _market) external onlyGovernor {
+        require(!marketExists[_market], "OVLV1: market exists");
 
-        require(!marketExists[market], "OVLV1:!!initialized");
+        marketExists[_market] = true;
+        marketActive[_market] = true;
+        allMarkets.push(_market);
 
-        marketExists[market] = true;
-        marketActive[market] = true;
-
-        allMarkets.push(market);
-
+        emit UpdateMarket(_market, true);
     }
 
-    /// @notice Disables an existing market contract for a mirin market
-    function disableMarket(address market) external onlyGovernor {
+    function disableMarket(address _market) external onlyGovernor {
+        require(marketExists[_market], "OVLV1: market !exists");
+        require(marketActive[_market], "OVLV1: market !enabled");
 
-        require(marketActive[market], "OVLV1: !enabled");
+        marketActive[_market] = false;
 
-        marketActive[market] = false;
-
+        emit UpdateMarket(_market, false);
     }
 
-    /// @notice Enables an existing market contract for a mirin market
-    function enableMarket(address market) external onlyGovernor {
+    function enableMarket(address _market) external onlyGovernor {
+        require(marketExists[_market], "OVLV1: market !exists");
+        require(!marketActive[_market], "OVLV1: market !disabled");
 
-        require(marketExists[market], "OVLV1: !exists");
+        marketActive[_market] = true;
 
-        require(!marketActive[market], "OVLV1: !disabled");
-
-        marketActive[market] = true;
-
+        emit UpdateMarket(_market, true);
     }
 
     /**
@@ -128,43 +122,53 @@ contract OverlayV1Mothership is AccessControlEnumerable {
       @param _collateral Overlay OVL collateral contract address
       */
     function initializeCollateral (address _collateral) external onlyGovernor {
-
-        require(!collateralExists[_collateral], "OVLV1:!!iintialized");
+        require(!collateralExists[_collateral], "OVLV1: collateral exists");
 
         collateralExists[_collateral] = true;
         collateralActive[_collateral] = true;
-
-        allCollateral.push(_collateral);
+        allCollaterals.push(_collateral);
 
         OverlayToken(ovl).grantRole(OverlayToken(ovl).MINTER_ROLE(), _collateral);
-
         OverlayToken(ovl).grantRole(OverlayToken(ovl).BURNER_ROLE(), _collateral);
 
+        emit UpdateCollateral(_collateral, true);
     }
 
     function enableCollateral (address _collateral) external onlyGovernor {
+        require(collateralExists[_collateral], "OVLV1: collateral !exists");
+        require(!collateralActive[_collateral], "OVLV1: collateral !disabled");
 
-        require(collateralExists[_collateral], "OVLV1:!exists");
-
-        require(!collateralActive[_collateral], "OVLV1:!disabled");
+        collateralActive[_collateral] = true;
 
         OverlayToken(ovl).grantRole(OverlayToken(ovl).MINTER_ROLE(), _collateral);
-
         OverlayToken(ovl).grantRole(OverlayToken(ovl).BURNER_ROLE(), _collateral);
 
+        emit UpdateCollateral(_collateral, true);
     }
 
     function disableCollateral (address _collateral) external onlyGovernor {
+        require(collateralExists[_collateral], "OVLV1: collateral !exists");
+        require(collateralActive[_collateral], "OVLV1: collateral !enabled");
 
-        require(collateralActive[_collateral], "OVLV1:!enabled");
+        collateralActive[_collateral] = false;
 
         OverlayToken(ovl).revokeRole(OverlayToken(ovl).MINTER_ROLE(), _collateral);
-
         OverlayToken(ovl).revokeRole(OverlayToken(ovl).BURNER_ROLE(), _collateral);
 
+        emit UpdateCollateral(_collateral, false);
     }
 
-    /// @notice Allows gov to adjust per market params
+    function setFeeTo(address _feeTo) external onlyGovernor {
+        _setFeeTo(_feeTo);
+    }
+
+    function setFee(uint _fee) external onlyGovernor {
+        _setFee(_fee);
+    }
+
+    function setFeeBurnRate(uint _feeBurnRate) external onlyGovernor {
+        _setFeeBurnRate(_feeBurnRate);
+    }
 
     /// @notice Allows gov to adjust global params
     function adjustGlobalParams(
@@ -172,21 +176,49 @@ contract OverlayV1Mothership is AccessControlEnumerable {
         uint16 _feeBurnRate,
         address _feeTo
     ) external onlyGovernor {
-        fee = _fee;
-        feeBurnRate = _feeBurnRate;
-        feeTo = _feeTo;
+      _setFee(_fee);
+      _setFeeBurnRate(_feeBurnRate);
+      _setFeeTo(_feeTo);
+    }
+    
+    function setMarginBurnRate(uint _marginBurnRate) external onlyGovernor {
+        _setMarginBurnRate(_marginBurnRate);
     }
 
-    function getUpdateParams() external view returns (
-        uint,
-        uint,
-        address
+    function _setFeeTo(address _feeTo) internal {
+        require(_feeTo != address(0), "OVLV1: fees to the zero address");
+        feeTo = _feeTo;
+        emit UpdateFeeTo(_feeTo);
+    }
+
+    function _setFee(uint _fee) internal {
+        require(_fee >= MIN_FEE && _fee <= MAX_FEE, "OVLV1: fee rate out of bounds");
+        fee = _fee;
+        emit UpdateFee(_fee);
+    }
+
+    function _setFeeBurnRate(uint _feeBurnRate) internal {
+        require(_feeBurnRate <= MAX_FEE_BURN, "OVLV1: fee burn rate out of bounds");
+        feeBurnRate = _feeBurnRate;
+        emit UpdateFeeBurnRate(_feeBurnRate);
+    }
+
+    function _setMarginBurnRate(uint _marginBurnRate) internal {
+        require(_marginBurnRate <= MAX_MARGIN_BURN, "OVLV1: margin burn rate out of bounds");
+        marginBurnRate = _marginBurnRate;
+        emit UpdateMarginBurnRate(_marginBurnRate);
+    }
+
+    function getGlobalParams() external view returns (
+        address feeTo_,
+        uint fee_,
+        uint feeBurnRate_,
+        uint marginBurnRate_
     ) {
-        return (
-            marginBurnRate,
-            feeBurnRate,
-            feeTo
-        );
+        feeTo_ = feeTo;
+        fee_ = fee;
+        feeBurnRate_ = feeBurnRate;
+        marginBurnRate_ = marginBurnRate;
     }
 
 }

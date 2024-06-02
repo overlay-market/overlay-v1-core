@@ -40,7 +40,7 @@ def test_disburse(mothership, token, market, ovl_collateral, alice, bob,
                          oi_adjusted_min_short, {"from": bob})
 
     # prior fee state
-    margin_burn_rate, fee_burn_rate, fee_to = mothership.getUpdateParams()
+    fee_to, _, fee_burn_rate, margin_burn_rate = mothership.getGlobalParams()
     fees = ovl_collateral.fees()
 
     prior_total_supply = token.totalSupply()
@@ -52,9 +52,12 @@ def test_disburse(mothership, token, market, ovl_collateral, alice, bob,
 
     burn_amount = Decimal(fees) * (Decimal(fee_burn_rate) / Decimal(1e18))
 
-    # test burn amount
+    # check burn amount
     assert int(total_supply_now) == int(
         Decimal(prior_total_supply) - burn_amount)
 
-    # test fee amount
+    # check fee amount
     assert int(fee_to_balance_now) == int(Decimal(fees) - burn_amount)
+
+    # check fee pot set to zero after disburse
+    assert ovl_collateral.fees() == 0

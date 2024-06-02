@@ -3,7 +3,7 @@ import brownie
 import os
 import json
 from brownie import (
-    OverlayTokenNew,
+    OverlayToken,
     ComptrollerShim,
     chain,
     interface,
@@ -16,6 +16,7 @@ OI_CAP = 800000
 AMOUNT_IN = 1
 PRICE_POINTS_START = 50
 PRICE_POINTS_END = 100
+
 
 PRICE_WINDOW_MACRO = 3600
 PRICE_WINDOW_MICRO = 600
@@ -143,7 +144,7 @@ def create_token(gov, alice, bob):
     sup = TOKEN_TOTAL_SUPPLY
 
     def create_token(supply=sup):
-        tok = gov.deploy(OverlayTokenNew)
+        tok = gov.deploy(OverlayToken)
         tok.mint(gov, supply, {"from": gov})
         tok.transfer(bob, supply/2, {"from": gov})
         tok.transfer(alice, supply/2, {"from": gov})
@@ -165,12 +166,12 @@ def feed_infos():
     depth_path = '../../feeds/univ3_axs_weth'
 
     raw_uni_framed_market_path = os.path.join(base,
-                                              market_path +
-                                              '_raw_uni_framed.json')
+                                              market_path
+                                              + '_raw_uni_framed.json')
     reflected_market_path = os.path.join(base, market_path + '_reflected.json')
     raw_uni_framed_depth_path = os.path.join(base,
-                                             depth_path +
-                                             '_raw_uni_framed.json')
+                                             depth_path
+                                             + '_raw_uni_framed.json')
     reflected_depth_path = os.path.join(base, depth_path + '_reflected.json')
 
     with open(os.path.normpath(raw_uni_framed_market_path)) as f:
@@ -349,15 +350,11 @@ def create_mothership(token, feed_infos, fees, alice, bob, gov, feed_owner,
 
         # Account that deploys the OverlayV1Mothership contract takes on the
         # Governor Role
-        mothership = gov.deploy(ovlms_type, *ovlms_args)
+        mothership = gov.deploy(ovlms_type, tok, *ovlms_args)
 
         # Governor grants the OverlayV1Mothership contract with the Admin Role
         # in the OVL ERC20 contract
         tok.grantRole(tok.ADMIN_ROLE(), mothership, {"from": gov})
-
-        # Governor sets the ovl state variable as the tok OVL ERC20 token
-        # address
-        mothership.setOVL(tok, {'from': gov})
 
         # Governor deploys the OverlayV1UniswapV3MarketZeroLambdaShim contract
         # which takes in the OverlayV1Mothership address, the mock depth and
@@ -441,7 +438,7 @@ def ovl_collateral(mothership, request):
       ovl_collateral generator produces a collateral contract instance of the
       0th collateral index stored in the OverlayV1Mothership contract
     '''
-    addr = mothership.allCollateral(0)
+    addr = mothership.allCollaterals(0)
     ovl_collateral = getattr(interface, request.param)(addr)
     yield ovl_collateral
 

@@ -3,9 +3,11 @@ pragma solidity ^0.8.7;
 
 interface IOverlayToken {
 
-    function burn(address account, uint256 amount) external;
+    function burn(uint256 amount) external;
 
     function mint(address account, uint256 amount) external;
+
+    function burnFrom(address account, uint256 amount) external;
 
     function totalSupply() external view returns (uint256);
 
@@ -20,7 +22,7 @@ interface IOverlayToken {
     function decimals() external view returns (uint);
 
     function symbol () external view returns (string memory);
-    
+
     function name () external view returns (string memory);
 
     function transferFrom(

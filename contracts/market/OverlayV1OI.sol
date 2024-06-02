@@ -110,7 +110,6 @@ contract OverlayV1OI {
 
         } else {
 
-            // TODO: we can make an unsafe mul function here
             uint256 _oiImbNow = _fundingFactor.mulDown(_funder - _funded);
             uint256 _total = _funder + _funded;
 

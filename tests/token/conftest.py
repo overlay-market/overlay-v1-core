@@ -29,7 +29,8 @@ def create_token(gov, alice, bob, request):
     def create_token(supply=sup):
         tok = gov.deploy(OverlayToken)
         tok.mint(gov, supply * 10 ** tok.decimals(), {"from": gov})
-        tok.transfer(bob, supply * 10 ** tok.decimals(), {"from": gov})
+        tok.transfer(alice, (supply/2) * 10 ** tok.decimals(), {"from": gov})
+        tok.transfer(bob, (supply/2) * 10 ** tok.decimals(), {"from": gov})
         return tok
 
     yield create_token

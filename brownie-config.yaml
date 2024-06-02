@@ -10,7 +10,7 @@ compiler:
   solc:
     version: 0.8.7
     remappings:
-      - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.3.2"
+      - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.3.3"
     optimizer:
       enabled: true
       runs: 400
@@ -21,4 +21,4 @@ compiler:
 
 autofetch_sources: True
 dependencies:
-  - OpenZeppelin/openzeppelin-contracts@4.3.2
+  - OpenZeppelin/openzeppelin-contracts@4.3.3

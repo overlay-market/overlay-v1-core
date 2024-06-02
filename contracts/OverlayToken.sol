@@ -20,12 +20,12 @@ contract OverlayToken is AccessControlEnumerable, ERC20("Overlay", "OVL") {
   }
 
   modifier onlyMinter() {
-    require(hasRole(MINTER_ROLE, msg.sender), "only minter");
+    require(hasRole(MINTER_ROLE, msg.sender), "ERC20: !minter");
     _;
   }
 
   modifier onlyBurner() {
-    require(hasRole(BURNER_ROLE, msg.sender), "only burner");
+    require(hasRole(BURNER_ROLE, msg.sender), "ERC20: !burner");
     _;
   }
 
@@ -33,7 +33,17 @@ contract OverlayToken is AccessControlEnumerable, ERC20("Overlay", "OVL") {
       _mint(_recipient, _amount);
   }
 
-  function burn(address _account, uint256 _amount) external onlyBurner {
+  function burn(uint256 _amount) external onlyBurner {
+      _burn(msg.sender, _amount);
+  }
+
+  // See: OpenZeppelin Contracts v4.4.0 (token/ERC20/extensions/ERC20Burnable.sol)
+  function burnFrom(address _account, uint256 _amount) external onlyBurner {
+      uint256 _currentAllowance = allowance(_account, msg.sender);
+      require(_currentAllowance >= _amount, "ERC20: burn amount exceeds allowance");
+      unchecked {
+          _approve(_account, msg.sender, _currentAllowance - _amount);
+      }
       _burn(_account, _amount);
   }
 }

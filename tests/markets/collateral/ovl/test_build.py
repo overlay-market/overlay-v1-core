@@ -243,6 +243,23 @@ def test_build_max_leverage(
                              is_long, oi_adjusted_min, {'from': bob})
 
 
+def test_build_reverts_when_leverage_is_zero(
+    ovl_collateral,
+    token,
+    market,
+    bob,
+    start_time,
+    collateral=1e18,
+    is_long=True
+):
+    brownie.chain.mine(timestamp=start_time)
+
+    EXPECTED_ERROR_MESSAGE = 'OVLV1:lev==0'
+    with brownie.reverts(EXPECTED_ERROR_MESSAGE):
+        ovl_collateral.build(market, MIN_COLLATERAL, 0,
+                             is_long, 0, {'from': bob})
+
+
 def test_build_cap(
     token,
     ovl_collateral,

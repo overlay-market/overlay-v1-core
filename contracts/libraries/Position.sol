@@ -79,7 +79,7 @@ library Position {
         bool _long = _self.isLong;
 
         if (_long) isUnder = __oi.mulDown(priceFrame) < _self.debt;
-        else isUnder = __oi.mulDown(priceFrame) + _self.debt < ( __oi * 2 );
+        else isUnder = __oi.mulDown(priceFrame) + _self.debt > ( __oi * 2 );
 
     }
 
