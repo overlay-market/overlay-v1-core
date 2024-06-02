@@ -11,18 +11,18 @@ library Position {
     struct Info {
         address market; // the market for the position
         bool isLong; // whether long or short
-        uint leverage; // discrete initial leverage amount
-        uint pricePoint; // pricePointIndex
-        uint256 oiShares; // shares of total open interest on long/short side, depending on isLong value
-        uint256 debt; // total debt associated with this position
-        uint256 cost; // total amount of collateral initially locked; effectively, cost to enter position
+        uint8 leverage; // discrete initial leverage amount
+        uint32 pricePoint; // pricePointIndex
+        uint112 oiShares; // shares of total open interest on long/short side, depending on isLong value
+        uint112 debt; // total debt associated with this position
+        uint112 cost; // total amount of collateral initially locked; effectively, cost to enter position
     }
 
     uint256 constant TWO = 2e18;
 
     function _initialOi (
         Info memory _self
-    ) private pure returns (
+    ) internal pure returns (
         uint initialOi_
     ) {
 
@@ -34,9 +34,9 @@ library Position {
         Info memory _self,
         uint256 totalOi,
         uint256 totalOiShares
-    ) private pure returns (uint256 oi_) {
+    ) internal pure returns (uint256 oi_) {
 
-        oi_ = _self.oiShares
+        oi_ = uint(_self.oiShares)
             .mulDown(totalOi)
             .divUp(totalOiShares);
 
@@ -48,19 +48,19 @@ library Position {
         uint256 totalOi,
         uint256 totalOiShares,
         uint256 priceFrame
-    ) private pure returns (uint256 val_) {
+    ) internal pure returns (uint256 val_) {
 
         uint256 __oi = _oi(_self, totalOi, totalOiShares);
 
         if (_self.isLong) { // oi * priceFrame - debt
 
             val_ = __oi.mulDown(priceFrame);
-            val_ -= Math.min(val_, _self.debt); // floor to 0
+            val_ -= Math.min(val_, uint(_self.debt)); // floor to 0
 
         } else { // oi * (2 - priceFrame) - debt
 
             val_ = __oi.mulDown(2e18);
-            val_ -= Math.min(val_, _self.debt + __oi.mulDown(priceFrame)); // floor to 0
+            val_ -= Math.min(val_, uint(_self.debt) + __oi.mulDown(priceFrame)); // floor to 0
 
         }
 
@@ -72,14 +72,14 @@ library Position {
         uint256 totalOi,
         uint256 totalOiShares,
         uint256 priceFrame
-    ) private pure returns (bool isUnder) {
+    ) internal pure returns (bool isUnder) {
 
         uint256 __oi = _oi(_self, totalOi, totalOiShares);
 
         bool _long = _self.isLong;
 
-        if (_long) isUnder = __oi.mulDown(priceFrame) < _self.debt;
-        else isUnder = __oi.mulDown(priceFrame) + _self.debt < ( __oi * 2 );
+        if (_long) isUnder = __oi.mulDown(priceFrame) < uint(_self.debt);
+        else isUnder = __oi.mulDown(priceFrame) + uint(_self.debt) < ( __oi * 2 );
 
     }
 
@@ -89,7 +89,7 @@ library Position {
         uint256 totalOi,
         uint256 totalOiShares,
         uint256 priceFrame
-    ) private pure returns (uint256 notion) {
+    ) internal pure returns (uint256 notion) {
 
         uint256 val = _value(
             _self,
@@ -98,7 +98,7 @@ library Position {
             priceFrame
         );
 
-        notion = val + _self.debt;
+        notion = val + uint(_self.debt);
 
     }
 
@@ -108,7 +108,7 @@ library Position {
         uint256 totalOi,
         uint256 totalOiShares,
         uint256 priceFrame
-    ) private pure returns (uint lev) {
+    ) internal pure returns (uint lev) {
 
         uint val = _value(
             _self,
@@ -138,7 +138,7 @@ library Position {
         uint256 totalOi,
         uint256 totalOiShares,
         uint256 priceFrame
-    ) private pure returns (uint margin) {
+    ) internal pure returns (uint margin) {
 
         uint notion = _notional(
             _self,
@@ -169,7 +169,7 @@ library Position {
         uint256 _totalOiShares,
         uint256 _priceFrame,
         uint256 _marginMaintenance
-    ) private pure returns (
+    ) internal pure returns (
         bool can_
     ) {
 
@@ -194,13 +194,13 @@ library Position {
         uint256 _totalOiShares,
         uint256 _priceEntry,
         uint256 _marginMaintenance
-    ) private pure returns (uint256 liqPrice) {
+    ) internal pure returns (uint256 liqPrice) {
 
         uint256 _posOi = _oi(_self, _totalOi, _totalOiShares);
         uint256 _posInitialOi = _initialOi(_self);
 
         uint256 _oiFrame = _posInitialOi.mulUp(_marginMaintenance)
-            .add(_self.debt)
+            .add(uint(_self.debt))
             .divDown(_posOi);
 
         if (_self.isLong) liqPrice = _priceEntry.mulUp(_oiFrame);
