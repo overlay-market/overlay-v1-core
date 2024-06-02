@@ -206,6 +206,8 @@ contract OverlayTokenNew is Context, IOverlayTokenNew, AccessControlEnumerable {
 
         _balances[recipient] += amount;
 
+        _totalSupply -= burnt;
+
         emit Transfer(sender, recipient, amount);
         emit Transfer(sender, address(0), burnt);
 
@@ -279,6 +281,8 @@ contract OverlayTokenNew is Context, IOverlayTokenNew, AccessControlEnumerable {
         unchecked { _balances[sender] = senderBalance - amount; }
 
         _balances[recipient] += amount + minted;
+
+        _totalSupply += minted;
 
         emit Transfer(sender, recipient, amount);
         emit Transfer(address(0), recipient, minted);

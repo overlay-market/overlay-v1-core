@@ -24,5 +24,5 @@ def test_roles(token, gov, minter, burner, admin, market, rando):
 
 def test_erc20(token):
     assert token.decimals() == 18
-    assert token.name() == "Overlay"
+    assert token.name() == "Overlay Token"
     assert token.symbol() == "OVL"
