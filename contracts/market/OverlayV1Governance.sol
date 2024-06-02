@@ -63,6 +63,17 @@ abstract contract OverlayV1Governance is
 
     }
 
+    /// @notice TODO
+    /// @dev Inherited by OverlayV1Market -> OverlayV1UniswapV3Market contract
+    /// @dev Called by the Governor Role
+    /// @param _k Funding constant
+    /// @param _pbnj Static spread
+    /// @param _compoundPeriod Compounding period
+    /// @param _lmbda Market impact
+    /// @param _staticCap Open interest cap
+    /// @param _brrrrdExpected TODO
+    /// @param _brrrrdWindowMacro Rolling window
+    /// @param _brrrrdWindowMicro Rolling window
     function setEverything (
         uint256 _k,
         uint256 _pbnj,
@@ -74,14 +85,16 @@ abstract contract OverlayV1Governance is
         uint256 _brrrrdWindowMicro
     ) public onlyGovernor {
 
+        // TODO: if internal function call only -> should prefix with _
         setK(_k);
 
+        // TODO: if internal function call only -> should prefix with _
         setSpread(_pbnj);
 
-        setPeriods(
-            _compoundPeriod
-        );
+        // TODO: if internal function call only -> should prefix with _
+        setPeriods(_compoundPeriod);
 
+        // TODO: if internal function call only -> should prefix with _
         setComptrollerParams(
             _lmbda,
             _staticCap,
@@ -92,6 +105,12 @@ abstract contract OverlayV1Governance is
 
     }
 
+    /// @notice Sets the static spread state variable, pbnj
+    /// @dev State variable pbnj is defined in the OverlayV1PricePoint contract
+    /// @dev Called by the Governor Role, TODO: is this function ever called
+    /// @dev outside this contract? If not, don't expose it.
+    /// @dev Called by internal contract function: setEverything
+    /// @param _pbnj Static spread
     function setSpread(
         uint256 _pbnj
     ) public onlyGovernor {
@@ -100,12 +119,24 @@ abstract contract OverlayV1Governance is
 
     }
 
+    /// @notice Sets the funding constant state variable, k
+    /// @dev State variable k is defined in the OverlayV1OI contract
+    /// @dev Called by the Governor Role, TODO: is this function ever called
+    /// @dev outside this contract? If not, don't expose it.
+    /// @dev Called by internal contract function: setEverything
+    /// @param _k Funding constant
     function setK (
         uint256 _k
     ) public onlyGovernor {
         k = _k;
     }
 
+    /// @notice Sets the compounding period state variable, compoundingPeriod
+    /// @dev State variable pbnj is defined in the OverlayV1PricePoint contract
+    /// @dev Called by the Governor Role, TODO: is this function ever called
+    /// @dev outside this contract? If not, don't expose it.
+    /// @dev Called by internal contract function: setEverything
+    /// @param _compoundingPeriod Compounding period
     function setPeriods(
         uint256 _compoundingPeriod
     ) public onlyGovernor {
@@ -114,6 +145,22 @@ abstract contract OverlayV1Governance is
 
     }
 
+    /// @notice Sets the market impact, open interest cap, TODO
+    /// @notice (_brrrrExpected), TODO (_brrrrdWindowMacro), TODO
+    /// @notice (_brrrrdWindowMicro) state variables which are _lmbda, 
+    /// @notice _staticCap, _brrrrExpected, _brrrrdWindowMacro, and 
+    /// @notice _brrrrdWindowMicro, respectively
+    /// @dev State variable lmbda, staticCap, brrrrExpected, brrrrdWindowMacro,
+    /// @dev and brrrrdWindowMicro are defined in the OverlayV1Comptroller
+    /// @dev contract
+    /// @dev Called by the Governor Role, TODO: is this function ever called
+    /// @dev outside this contract? If not, don't expose it.
+    /// @dev Called by internal contract function: setEverything
+    /// @param _lmbda Market impact
+    /// @param _staticCap Open interest cap
+    /// @param _brrrrExpected TODO
+    /// @param _brrrrdWindowMacro Rolling window
+    /// @param _brrrrdWindowMicro Rolling window
     function setComptrollerParams (
         uint256 _lmbda,
         uint256 _staticCap,
@@ -124,6 +171,7 @@ abstract contract OverlayV1Governance is
 
         lmbda = _lmbda;
         staticCap = _staticCap;
+        // TODO: brrrExpected vs brrrr*d*Expected
         brrrrdExpected = _brrrrExpected;
         brrrrdWindowMacro = _brrrrdWindowMacro;
         brrrrdWindowMicro = _brrrrdWindowMicro;

@@ -25,6 +25,21 @@ contract OverlayV1UniswapV3Market is OverlayV1Market {
     address internal immutable eth;
     bool internal immutable ethIs0;
 
+    /**
+      @notice TODO
+      @dev Calls IUniswapV3Pool contract
+      @param _mothership OverlayV1Mothership contract address
+      @param _ovlFeed OverlayV3OracleMock contract address,
+             TODO: description + name
+      @param _marketFeed OverlayV3OracleMock contract address
+             TODO: description + name
+      @param _quote WETH contract address, TODO: is this always ETH?
+      @param _eth WETH contract address, TODO: is this always ETH?
+      @param _baseAmount amount in, TODO
+      @param _macroWindow TODO
+      @param _microWindow TODO
+      @param _priceFrameCap TODO
+      */
     constructor(
         address _mothership,
         address _ovlFeed,
@@ -47,6 +62,7 @@ contract OverlayV1UniswapV3Market is OverlayV1Market {
 
         // immutables
         eth = _eth;
+        // TODO: Confusing to track down origin
         ethIs0 = IUniswapV3Pool(_ovlFeed).token0() == _eth;
         ovlFeed = _ovlFeed;
         marketFeed = _marketFeed;
@@ -57,20 +73,63 @@ contract OverlayV1UniswapV3Market is OverlayV1Market {
         address _token0 = IUniswapV3Pool(_marketFeed).token0();
         address _token1 = IUniswapV3Pool(_marketFeed).token1();
 
-        base = _token0 != _quote ? _token0 : _token1;
-        quote = _token0 == _quote ? _token0 : _token1;
 
+        // If token0 address is NOT the quote address, then base is the token0
+        // address. Otherwise, base is the token1 address.
+        base = _token0 != _quote ? _token0 : _token1;
+        // If token0 address is the quote address, then quote is the token0
+        // address. Otherwise, quote is the token1 address.
+        quote = _token0 == _quote ? _token0 : _token1;
+        // Above lines getting base and quote are confusing, proposal to change
+        // to the following:
+        //   if (_token0 == quote) {
+        //     quote = _token0;
+        //     base = _token1;
+        //   } else if (_token0 != quote) {
+        //     quote = _token1;
+        //     base = _token0;
+        //   } else {
+        //     // TODO: handle case
+        //   }
+
+        // Fetch the TWAP tick using the Uniswap V3 oracle
+        // Call to UniswapV3OracleLibraryV2 contract function
         int24 _tick = OracleLibraryV2.consult(
             _marketFeed,
             uint32(_macroWindow),
             uint32(0)
         );
 
+        // Add new PricePoint struct entry
+        // TODO: why are we setting the macroTick and microTick to be the same?
+        // TODO: why is the market depth always zero here?
+        // dev: _pricePoints variable is defined in OverlayV1PricePoint
+        // dev: which is inherited from the OverlayV1Market contract
         _pricePoints.push(PricePoint(
             _tick, 
             _tick, 
             0
         ));
+
+        // Given a tick and a token amount, calculate the amount of tokens
+        // received in exchange
+        // TODO: suggested change for clarity (could just use the suggested
+        // if statement below):
+        //   address baseToken;
+        //   address quoteToken;
+        //   if (_token0 != _quote) {
+        //     baseToken = _token0;
+        //     quoteToken = _token1;
+        //   } else if (_token0 == quote) {
+        //     baseToken = _token1;
+        //     quoteToken = _token0;
+        //   }
+        //   uint _price = OracleLibraryV2.getQuoteAtTick(
+        //       _tick,
+        //       uint128(_baseAmount),
+        //       baseToken,
+        //       quoteToken,
+        //   );
 
         uint _price = OracleLibraryV2.getQuoteAtTick(
             _tick,
@@ -79,6 +138,9 @@ contract OverlayV1UniswapV3Market is OverlayV1Market {
             _token0 == _quote ? _token0 : _token1
         );
 
+        // Emit OverlayV1PricePoint contract event
+        // TODO: move event definition to this contract (only called here)
+        // TODO: why is the bid and ask the same? why is the depth 0?
         emit NewPricePoint(_price, _price, 0);
 
     }

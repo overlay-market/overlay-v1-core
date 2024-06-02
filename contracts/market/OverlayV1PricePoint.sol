@@ -17,6 +17,7 @@ abstract contract OverlayV1PricePoint {
         uint256 depth;
     }
 
+    // TODO: defined here, but set in OverlayV1Governance
     uint256 public pbnj;
 
     uint256 public updated;
@@ -26,6 +27,7 @@ abstract contract OverlayV1PricePoint {
     // mapping from price point index to realized historical prices
     PricePoint[] internal _pricePoints;
 
+    // TODO: move to the contract where this is called
     event NewPricePoint(uint bid, uint ask, uint depth);
 
     constructor(

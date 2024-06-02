@@ -58,34 +58,103 @@ GOV = accounts[0]
 FEE_TO = accounts[4]
 
 
+def open_json(path):
+    '''
+    Opens json file.
+
+    Input:
+      path [str]:  Path to json file relative to this file location
+
+    Output:
+      [dict]:      Json data
+    '''
+    base = os.path.dirname(os.path.abspath(__file__))
+    reflected_path = os.path.join(base, path)
+
+    with open(os.path.normpath(reflected_path)) as f:
+        data = json.load(f)
+
+    return data
+
+
+def open_reflected_json(path):
+    '''
+    Reads files post-fixed with '_reflected.json' in the feeds directory.
+
+    Input:
+      path [str]:  Prefix of file name, e.g. '../feeds/univ3_axs_weth'
+
+    Output:
+      [dict]:
+         timestamp [Array(int)]:    Timestamp
+         one_hr    [Array(float)]:  TODO
+         ten_min   [Array(float)]:  TODO
+         spot      [Array(float)]:  TODO
+         bids      [Array(float)]:  TODO
+         asks      [Array(float)]:  TODO
+    '''
+    return open_json('../feeds/univ3_axs_weth_reflected.json')
+
+
+def open_raw_uni_framed_json(path):
+    '''
+    Reads files post-fixed with '_raw_uni_framed.json' in the feeds directory.
+
+    Input:
+      path [str]:  Prefix of file name, e.g. '../feeds/univ3_axs_weth'
+
+    Output:
+      [dict]:
+         observations [Array(Array)]:
+           [int]:   block timestamp, uint32
+           [int]:   the tick accumulator, i.e. tick * time elapsed since the
+                    pool was first initialized, int56
+           [int]:   Seconds per liquidity,
+                    i.e. seconds elapsed / max(1, liquidity) since the pool was
+                    first initialized
+           [bool]:  Whether the observation is initialized
+         shims        [Array(Array)]:
+           [int]:   block timestamp, uint
+           [int]:   TODO liquidity, uint128
+           [int]:   block timestamp, uint32
+           [int]:   block timestamp, uint32
+    '''
+    return open_json('../feeds/univ3_axs_weth_raw_uni_framed.json')
+
+
 def deploy_uni_factory():
     '''
     Deploys the UniswapV3FactoryMock on the Feed Owner's behalf.
 
     Output:
-        [Contract]:  UniswapV3FactoryMock contract instance
+      [Contract]:  UniswapV3FactoryMock contract instance
     '''
     return FEED_OWNER.deploy(UniswapV3FactoryMock)
 
 
 def deploy_uni_pool(factory, token0, token1, path):
     '''
+    Deploys a UniswapV3OracleMock contract instance initialized with token pair
+    test data.
+
     Inputs:
       factory [Contract]:  UniswapV3FactoryMock contract instance
       token0  [str]:       First token contract address in the token pair
       token1  [str]:       Second token contract address in the token pair
       path    [str]:       Path to directory containing mock feed data
+
+    Output:
+      [Contract]:          UniswapV3OracleMock contract instance initialized
+                           with a token pair
     '''
 
-    base = os.path.dirname(os.path.abspath(__file__))
-    raw_uni_framed_path = os.path.join(base, path + '_raw_uni_framed.json')
-    reflected_path = os.path.join(base, path + '_reflected.json')
+    # Load test observation and shim data to create UniswapV3OracleMock token
+    # pair pool
+    data = open_raw_uni_framed_json('../feeds/univ3_axs_weth')
 
-    with open(os.path.normpath(raw_uni_framed_path)) as f:
-        data = json.load(f)
-
-    with open(os.path.normpath(reflected_path)) as f:
-        beginning = json.load(f)['timestamp'][0]
+    # Get initial timestamp of test pair to initialize the chain time with
+    reflected_data = open_raw_uni_framed_json('../feeds/univ3_axs_weth')
+    beginning = reflected_data['timestamp'][0]
 
     # Creates a pool with the provided token pair
     factory.createPool(token0, token1)
@@ -93,21 +162,31 @@ def deploy_uni_pool(factory, token0, token1, path):
     # Get instance of the IUniswapV3OracleMock contract interface
     IUniswapV3OracleMock = getattr(interface, 'IUniswapV3OracleMock')
 
+    # Gets new UniswapV3OracleMock token pair contract address
     uniswapv3_pool = IUniswapV3OracleMock(factory.allPools(0))
 
+    # Loads test data for the token pair into the UniswapV3OracleMock contract
     uniswapv3_pool.loadObservations(
         data['observations'],
         data['shims'],
         {'from': FEED_OWNER}
     )
 
+    # Start chain at the first timestamp in the *_reflected.json file
     chain.mine(timestamp=beginning)
 
+    # Return instance of UniswapV3OracleMock initialized with a token pair
     return uniswapv3_pool
 
 
 def deploy_ovl():
+    '''
+    The Governor role deploys the OverlayToken OVL ERC20 token contract.
+    The Governor role mints half the total supply to Alice, and half to Bob.
 
+    Output:
+      [Contract]:  OverlayToken contract instance
+    '''
     ovl = GOV.deploy(OverlayToken)
     ovl.mint(ALICE, TOKEN_TOTAL_SUPPLY / 2, {"from": GOV})
     ovl.mint(BOB, TOKEN_TOTAL_SUPPLY / 2, {"from": GOV})
@@ -116,71 +195,89 @@ def deploy_ovl():
 
 
 def deploy_mothership(ovl):
+    '''
+    The Governor role deploys the OverlayV1Mothership contract.
 
-    mothership = GOV.deploy(
-        OverlayV1Mothership,
-        FEE_TO,
-        FEE,
-        FEE_BURN_RATE,
-        MARGIN_BURN_RATE
-    )
+    Input:
+      ovl [Contract]:         OverlayToken contract instance
 
+    Output:
+      mothership [Contract]:  OverlayV1Mothership contract instance
+    '''
+    # Governor deploys OverlayV1Mothership contract
+    mothership = GOV.deploy(OverlayV1Mothership, FEE_TO, FEE, FEE_BURN_RATE,
+                            MARGIN_BURN_RATE)
+
+    # Governor registers the OverlayToken OVL ERC20 token contract address with
+    # the OverlayV1Mothership contract instance
     mothership.setOVL(ovl, {"from": GOV})
 
+    # Governor grants the OverlayV1Mothership contract address ADMIN_ROLE
+    # rights.
     ovl.grantRole(ovl.ADMIN_ROLE(), mothership, {"from": GOV})
 
+    # Return OverlayV1Mothership contract instance
     return mothership
 
 
 def deploy_market(mothership, feed_depth, feed_market):
+    '''
+    The Governor deploys a new WETH/WETH market via the
+    OverlayV1UniswapV3Market contract, then sets several state variables
+    associated with the OverlayV1UniswapV3Market contract instance. The
+    Governor role then makes the previously initialized OverlayV1Mothership
+    contract aware of the new OverlayV1UniswapV3Market market.
 
-    market = GOV.deploy(
-        OverlayV1UniswapV3Market,
-        mothership,
-        feed_depth,
-        feed_market,
-        WETH,
-        WETH,
-        AMOUNT_IN,
-        PRICE_WINDOW_MACRO,
-        PRICE_WINDOW_MICRO
-    )
+    Inputs:
+      mothership  [Contract]:  OverlayV1Mothership contract instance
+      feed_depth  [Contract]:  OverlayV3OracleMock contract instance, TODO
+      feed_market [Contract]:  OverlayV3OracleMock contract instance, TODO
 
-    market.setEverything(
-        K,
-        PRICE_FRAME_CAP,
-        SPREAD,
-        UPDATE_PERIOD,
-        COMPOUND_PERIOD,
-        IMPACT_WINDOW,
-        LAMBDA,
-        STATIC_CAP,
-        BRRRR_EXPECTED,
-        BRRRR_WINDOW_MACRO,
-        BRRRR_WINDOW_MICRO,
-        {"from": GOV}
-    )
+    Output:
+      [Contract]: OverlayV1Mothership contract instance initialized with the
+                  new OverlayV1UniswapV3Market contract instance
+    '''
+    # Governor role deploys OverlayV1UniswapV3Market 
+    # Sets a lot of variables inherited from OverlayV1Market,
+    # OverlayV1Comptroller, OverlayV1OI, OverlayV1PricePoint. 
+    # TODO: unclear in the contract which contract all the variables are
+    # defined in. Variables, events, and functions that are only called in one
+    # contract should be defined in that contract. Ex: NewPricePoint event
+    market = GOV.deploy(OverlayV1UniswapV3Market, mothership, feed_depth,
+                        feed_market, WETH, WETH, AMOUNT_IN, PRICE_WINDOW_MACRO,
+                        PRICE_WINDOW_MICRO)
 
+    # Governor role sets the funding constant (k), static spread (pbnj),
+    # compounding period (compoundingPeriod), market impact (lmbda), open
+    # interest cap (staticCap) TODO (brrrrExpected), macro rolling window
+    # (brrrrdWindowMacro, and micro rolling window (brrrrdWindowMicro) state
+    # variables
+    # setEverything function is called only in OverlayV1UniswapV3Market, but is
+    # inherited from the OverlayV1Goverance to OverlayV1Market to
+    # OverlayV1UniswapV3Market
+    market.setEverything(K, PRICE_FRAME_CAP, SPREAD, UPDATE_PERIOD,
+                         COMPOUND_PERIOD, IMPACT_WINDOW, LAMBDA, STATIC_CAP,
+                         BRRRR_EXPECTED, BRRRR_WINDOW_MACRO,
+                         BRRRR_WINDOW_MICRO, {"from": GOV})
+
+    # Governor role makes the OverlayV1Mothership contract instance aware of
+    # the newly initialized market
     mothership.initializeMarket(market, {"from": GOV})
 
     return market
 
 
 def deploy_ovl_collateral(mothership, market, ovl):
+    '''
+    The Governor role deploys the OverlayV1OVLCollateral contract.
+    '''
 
-    ovl_collateral = GOV.deploy(
-        OverlayV1OVLCollateral,
-        "uri",
-        mothership
-    )
+    # Governor role deploys the OverlayV1OVLCollateral contract
+    ovl_collateral = GOV.deploy(OverlayV1OVLCollateral, "uri", mothership)
 
-    ovl_collateral.setMarketInfo(
-        market,
-        MARGIN_MAINTENANCE,
-        MARGIN_REWARD_RATE,
-        MAX_LEVERAGE,
-        {"from": GOV}
-    )
+    ovl_collateral.setMarketInfo(market, MARGIN_MAINTENANCE,
+                                 MARGIN_REWARD_RATE, MAX_LEVERAGE,
+                                 {"from": GOV})
 
     market.addCollateral(ovl_collateral, {"from": GOV})
 
@@ -233,16 +330,21 @@ def transfer_position_shares_batch(collateral_manager, sender, receiver,
 
 def main():
 
+    #  Deploy the UniswapV3FactoryMock on the Feed Owner's behalf
     uni_factory = deploy_uni_factory()
 
+    # Deploy UniswapV3OracleMock contract initialized with an AXS/WETH pair
     feed_depth = deploy_uni_pool(uni_factory, AXS, WETH,
                                  '../feeds/univ3_axs_weth')
 
+    # Deploy UniswapV3OracleMock contract initialized with an DAI/WETH pair
     feed_market = deploy_uni_pool(uni_factory, DAI, WETH,
                                   '../feeds/univ3_dai_weth')
 
+    # Governor deploys the OverlayToken contract for the OVL ERC20 token
     ovl = deploy_ovl()
 
+    # Deploy OverlayV1Mothership contract
     mothership = deploy_mothership(ovl)
 
     market = deploy_market(mothership, feed_depth, feed_market)

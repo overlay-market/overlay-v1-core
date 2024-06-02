@@ -11,6 +11,8 @@ contract OverlayV1OI {
 
     uint256 private constant ONE = 1e18;
 
+    // TODO: defined here AND set in the constructor here, but ALSO set in
+    // OverlayV1Governance
     uint256 public compoundingPeriod;
     uint256 public compounded;
 
@@ -20,6 +22,7 @@ contract OverlayV1OI {
     uint256 public oiLongShares; // total shares of long open interest outstanding
     uint256 public oiShortShares; // total shares of short open interest outstanding
 
+    // TODO: defined here, but set in OverlayV1Governance
     uint256 public k;
 
     event FundingPaid(uint oiLong, uint oiShort, int fundingPaid);

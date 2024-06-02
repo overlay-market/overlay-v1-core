@@ -17,7 +17,8 @@ library OracleLibraryV2 {
     /// @param pool Address of Uniswap V3 pool that we want to observe
     /// @param secondsAgoStart end of twap time
     /// @param secondsAgoEnd start of twap time
-    /// @return timeWeightedAverageTick The time-weighted average tick from (block.timestamp - period) to block.timestamp
+    /// @return timeWeightedAverageTick The time-weighted average tick from
+    ///         (block.timestamp - period) to block.timestamp
     function consult(
         address pool, 
         uint32 secondsAgoStart, 
@@ -41,12 +42,16 @@ library OracleLibraryV2 {
 
     }
 
-    /// @notice Given a tick and a token amount, calculates the amount of token received in exchange
+    /// @notice Given a tick and a token amount, calculates the amount of token
+    /// @notice received in exchange
     /// @param tick Tick value used to calculate the quote
     /// @param baseAmount Amount of token to be converted
-    /// @param baseToken Address of an ERC20 token contract used as the baseAmount denomination
-    /// @param quoteToken Address of an ERC20 token contract used as the quoteAmount denomination
-    /// @return quoteAmount Amount of quoteToken received for baseAmount of baseToken
+    /// @param baseToken Address of an ERC20 token contract used as the
+    ///        baseAmount denomination
+    /// @param quoteToken Address of an ERC20 token contract used as the
+    ///        quoteAmount denomination
+    /// @return quoteAmount Amount of quoteToken received for baseAmount of
+    ///         baseToken
     function getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,

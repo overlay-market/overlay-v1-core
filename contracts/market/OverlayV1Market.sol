@@ -206,13 +206,15 @@ abstract contract OverlayV1Market is OverlayV1Governance {
 
     }
 
-    /// @notice Exposes important info for calculating position metrics.
-    /// @dev These values are required to feed to the position calculations.
-    /// @param _isLong Whether position is on short or long side of market.
-    /// @param _priceEntry Index of entry price
-    /// @return oi_ The current open interest on the chosen side.
-    /// @return oiShares_ The current open interest shares on the chosen side.
-    /// @return priceFrame_ Price frame resulting from e entry and exit prices.
+    /**
+      @notice Exposes important info for calculating position metrics.
+      @dev These values are required to feed to the position calculations.
+      @param _isLong Whether position is on short or long side of market.
+      @param _priceEntry Index of entry price
+      @return oi_ The current open interest on the chosen side.
+      @return oiShares_ The current open interest shares on the chosen side.
+      @return priceFrame_ Price frame resulting from e entry and exit prices.
+     */
     function positionInfo (
         bool _isLong,
         uint _priceEntry
@@ -240,13 +242,15 @@ abstract contract OverlayV1Market is OverlayV1Governance {
     }
 
 
-    /// @notice Computes the price frame for a given position
-    /// @dev Computes the price frame conditionally giving shorts the bid
-    /// on entry and ask on exit and longs the bid on exit and short on
-    /// entry. Capped at the priceFrameCap for longs.
-    /// @param _isLong If price frame is for a long or a short.
-    /// @param _pricePoint The index of the entry price.
-    /// @return priceFrame_ The exit price divided by the entry price.
+    /**
+      @notice Computes the price frame for a given position
+      @dev Computes the price frame conditionally giving shorts the bid
+      on entry and ask on exit and longs the bid on exit and short on
+      entry. Capped at the priceFrameCap for longs.
+      @param _isLong If price frame is for a long or a short.
+      @param _pricePoint The index of the entry price.
+      @return priceFrame_ The exit price divided by the entry price.
+     */
     function priceFrame (
         bool _isLong,
         uint _pricePoint

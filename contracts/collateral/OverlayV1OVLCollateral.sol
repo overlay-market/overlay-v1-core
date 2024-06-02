@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
@@ -71,15 +70,15 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
     }
 
     /**
-      @notice Constructor method
-      @dev  Creates a `Position.Info` struct and appends it to `positions` array to track them
+      @notice Creates a new position on a market, TODO check
+      @dev Creates a `Position.Info` struct and appends it to `positions` array
+      @dev to track them
+      @dev Inherits from the ERC1155: Multi Token Standard
+      @dev Calls IOverlayV1Mothership contract function: ovl
       @param _uri Unique Resource Identifier of a token
       @param _mothership OverlayV1Mothership contract address
      */
-    constructor (
-        string memory _uri,
-        address _mothership
-    ) ERC1155(_uri) {
+    constructor (string memory _uri, address _mothership) ERC1155(_uri) {
 
         mothership = IOverlayV1Mothership(_mothership);
 
@@ -94,7 +93,6 @@ contract OverlayV1OVLCollateral is ERC1155Supply {
             debt: 0,
             cost: 0
         }));
-
     }
 
     /**

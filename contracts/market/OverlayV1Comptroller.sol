@@ -42,7 +42,9 @@ abstract contract OverlayV1Comptroller {
     }
 
     uint256 public immutable impactWindow;
+    // TODO: defined here, but set in OverlayV1Governance
     uint256 internal staticCap;
+    // TODO: defined here, but set in OverlayV1Governance
     uint256 public lmbda;
 
     uint256[2] public brrrrdAccumulator;

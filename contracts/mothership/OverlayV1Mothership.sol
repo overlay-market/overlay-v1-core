@@ -85,9 +85,8 @@ contract OverlayV1Mothership is AccessControlEnumerable {
 
     /**
       @notice Make this contract aware of a new market contract's existence
-      @dev Should be called after contract deployment in specific market factory.createMarket
       @dev Only the Governor can initialize a market
-      @dev Appends new market address to `allMarkets` array to track them
+      @dev Appends new market address to allMarkets array to track them
       @param market Overlay market contract address
       */
     function initializeMarket(address market) external onlyGovernor {
