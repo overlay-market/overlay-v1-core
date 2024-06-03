@@ -174,7 +174,6 @@ def test_set_everything(market, gov):
     market.setEverything(
       input_k,
       input_spread,
-      input_compounding_period,
       input_lmbda,
       input_static_cap,
       input_brrrr_expected,

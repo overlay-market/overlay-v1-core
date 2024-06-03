@@ -49,7 +49,6 @@ def test_only_gov_can_update_market(market, token, bob, alice, rewards, feed_own
         market.setEverything(
             input_k,
             input_spread,
-            input_compounding_period,
             input_static_cap,
             initial_lmbda,
             input_brrrr_expected,

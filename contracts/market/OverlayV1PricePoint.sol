@@ -184,5 +184,29 @@ abstract contract OverlayV1PricePoint {
 
     }
 
+    /// @notice Computes the price frame for a given position
+    /// @dev Computes the price frame conditionally giving shorts the bid
+    /// on entry and ask on exit and longs the bid on exit and short on
+    /// entry. Capped at the priceFrameCap for longs.
+    /// @param _isLong If price frame is for a long or a short.
+    /// @param _pricePoint The index of the entry price.
+    /// @return priceFrame_ The exit price divided by the entry price.
+    function priceFrame (
+        bool _isLong,
+        uint _pricePoint
+    ) internal view returns (
+        uint256 priceFrame_
+    ) {
+
+        ( uint _entryBid, uint _entryAsk, ) = readPricePoint(_pricePoint);
+
+        ( uint _exitBid, uint _exitAsk, ) = pricePointCurrent();
+
+        priceFrame_ = _isLong
+            ? Math.min(_exitBid.divDown(_entryAsk), priceFrameCap)
+            : _exitAsk.divUp(_entryBid);
+
+    }
+
 
 }

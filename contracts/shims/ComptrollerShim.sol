@@ -25,6 +25,16 @@ contract ComptrollerShim is OverlayV1Comptroller {
     uint public macroWindow;
     uint public microWindow;
 
+    struct Tempo {
+        uint32 updated;
+        uint32 compounded;
+        uint8 impactCycloid;
+        uint8 brrrrdCycloid;
+        uint32 brrrrdFiling;
+    }
+
+    Tempo public tempo;
+
     /**
       @notice Constructor method
       @param _lmbda market impact
@@ -58,13 +68,15 @@ contract ComptrollerShim is OverlayV1Comptroller {
         lmbda = _lmbda;
         staticCap = _staticCap;
         brrrrdExpected = _brrrrdExpected;
-        brrrrdWindowMacro = _brrrrdWindowMacro;
-        brrrrdWindowMicro = _brrrrdWindowMicro;
+        brrrrdWindowMacro = uint32(_brrrrdWindowMacro);
+        brrrrdWindowMicro = uint32(_brrrrdWindowMicro);
         macroWindow = _priceWindowMacro;
         microWindow = _priceWindowMicro;
         marketFeed = _marketFeed;
         ovlFeed = _ovlFeed;
         ethIs0 = IUniswapV3Pool(_ovlFeed).token0() == _eth;
+
+        tempo.brrrrdFiling = uint32(block.timestamp);
 
     }
 
@@ -75,6 +87,39 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
     }
 
+    function pressure (
+        bool _isLong,
+        uint _oi,
+        uint _cap
+    ) public view override returns (uint pressure_) {
+
+        pressure_ = _pressure(
+            _isLong,
+            _oi,
+            _cap,
+            tempo.impactCycloid
+        );
+
+    }
+
+    function _oiCap (
+        uint _depth,
+        uint8 _brrrrdCycloid
+    ) internal override view returns (
+        uint cap_
+    ) {
+
+        cap_ = super._oiCap(_depth, _brrrrdCycloid);
+        cap_ = lmbda == 0 ? staticCap : cap_;
+
+    }
+    function oiCap () public view virtual override returns (
+        uint cap_
+    ) {
+
+        cap_ = _oiCap( depth() , tempo.brrrrdCycloid);
+
+    }
 
     function computeDepth (
         uint _marketLiquidity,
@@ -151,7 +196,11 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
         (   lastMoment,
             rollerNow_,
-            rollerThen_ ) = scry(impactRollers, impactCycloid, _ago);
+            rollerThen_ ) = scry(
+                impactRollers, 
+                tempo.impactCycloid, 
+                _ago
+            );
 
 
     }
@@ -165,7 +214,13 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
         for (uint i = 0; i < len; i++) {
 
-            brrrr( _brrrr[i], _antiBrrrr[i] );
+            (   tempo.brrrrdCycloid, 
+                tempo.brrrrdFiling ) = brrrr( 
+                    _brrrr[i], 
+                    _antiBrrrr[i],
+                    tempo.brrrrdCycloid,
+                    tempo.brrrrdFiling
+                );
 
         }
 
@@ -184,7 +239,17 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
             uint _cap = oiCap();
 
-            impact_ = intake(_isLong[i], _oi[i], _cap);
+            (   impact_,
+                tempo.impactCycloid,
+                tempo.brrrrdCycloid,
+                tempo.brrrrdFiling )= intake(
+                    _isLong[i], 
+                    _oi[i], 
+                    _cap,
+                    tempo.impactCycloid,
+                    tempo.brrrrdCycloid,
+                    tempo.brrrrdFiling
+                );
 
         }
 
@@ -199,7 +264,12 @@ contract ComptrollerShim is OverlayV1Comptroller {
 
         uint _cap = oiCap();
 
-        ( ,,impact_ ) = _intake(_isLong, _oi, _cap);
+        ( ,,impact_ ) = _intake(
+            _isLong, 
+            _oi, 
+            _cap,
+            tempo.impactCycloid
+        );
 
     }
 

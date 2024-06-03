@@ -52,7 +52,6 @@ def test_unwind_revert_insufficient_shares(
     is_long=strategy('bool'),
     oi=strategy('uint256', min_value=1, max_value=OI_CAP/1e16),
     leverage=strategy('uint256', min_value=1, max_value=100))
-@settings(max_examples=50)
 def test_unwind_oi_removed(
         ovl_collateral,
         mothership,

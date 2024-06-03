@@ -2,8 +2,6 @@
 pragma solidity ^0.8.7;
 
 import "../libraries/FixedPoint.sol";
-
-import "./OverlayV1Governance.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 abstract contract OverlayV1Comptroller {
@@ -15,10 +13,6 @@ abstract contract OverlayV1Comptroller {
 
     // length of roller arrays when we circle
     uint256 constant CHORD = 60;
-
-    // current element for new rolls
-    uint256 public impactCycloid;
-    uint256 public brrrrdCycloid;
 
     Roller[60] public impactRollers;
     Roller[60] public brrrrdRollers;
@@ -42,14 +36,13 @@ abstract contract OverlayV1Comptroller {
     }
 
     uint256 public immutable impactWindow;
-    uint256 internal staticCap;
+    uint256 public staticCap;
     uint256 public lmbda;
 
     uint256[2] public brrrrdAccumulator;
-    uint256 public brrrrdWindowMicro;
-    uint256 public brrrrdWindowMacro;
+    uint32 public brrrrdWindowMicro;
+    uint32 public brrrrdWindowMacro;
     uint256 public brrrrdExpected;
-    uint256 public brrrrdFiling;
 
     constructor (
         uint256 _impactWindow
@@ -78,38 +71,48 @@ abstract contract OverlayV1Comptroller {
   */
     function brrrr (
         uint _brrrr,
-        uint _antiBrrrr
-    ) internal {
+        uint _antiBrrrr,
+        uint8 _brrrrdCycloid,
+        uint32 _brrrrdFiling
+    ) internal returns (
+        uint8 brrrrdCycloid_,
+        uint32 brrrrdFiling_
+    ) {
 
-        uint _now = block.timestamp;
-        uint _brrrrdFiling = brrrrdFiling;
+        uint32 _now = uint32(block.timestamp);
 
         if ( _now > _brrrrdFiling ) { // time to roll in the brrrrr
 
-            uint _brrrrdCycloid = brrrrdCycloid;
+            Roller memory _rollerNow = brrrrdRollers[_brrrrdCycloid];
 
-            Roller memory _roller = brrrrdRollers[_brrrrdCycloid];
+            uint _lastMoment = _rollerNow.time;
 
-            uint _lastMoment = _roller.time;
+            _rollerNow.time = _brrrrdFiling;
+            _rollerNow.ying += brrrrdAccumulator[0];
+            _rollerNow.yang += brrrrdAccumulator[1];
 
-            _roller.time = _brrrrdFiling;
-            _roller.ying += brrrrdAccumulator[0];
-            _roller.yang += brrrrdAccumulator[1];
-
-            brrrrdCycloid = roll(brrrrdRollers, _roller, _lastMoment, _brrrrdCycloid);
+            brrrrdCycloid_ = roll(
+                brrrrdRollers, 
+                _rollerNow, 
+                _brrrrdCycloid,
+                _lastMoment
+            );
 
             brrrrdAccumulator[0] = _brrrr;
             brrrrdAccumulator[1] = _antiBrrrr;
 
-            uint _brrrrdWindowMicro = brrrrdWindowMicro;
+            uint32 _brrrrdWindowMicro = brrrrdWindowMicro;
 
-            brrrrdFiling += _brrrrdWindowMicro
+            brrrrdFiling_ += _brrrrdWindowMicro
                 + ( ( ( _now - _brrrrdFiling ) / _brrrrdWindowMicro ) * _brrrrdWindowMicro );
 
         } else { // add to the brrrr accumulator
 
             brrrrdAccumulator[0] += _brrrr;
             brrrrdAccumulator[1] += _antiBrrrr;
+
+            brrrrdCycloid_ = _brrrrdCycloid;
+            brrrrdFiling_ = _brrrrdFiling;
 
         }
 
@@ -121,7 +124,9 @@ abstract contract OverlayV1Comptroller {
     @return brrrrd_ TODO
     @return antiBrrrrd_ TODO
    */
-    function getBrrrrd () public view returns (
+    function getBrrrrd (
+        uint8 _brrrrdCycloid
+    ) public view returns (
         uint brrrrd_,
         uint antiBrrrrd_
     ) {
@@ -129,7 +134,7 @@ abstract contract OverlayV1Comptroller {
         (  ,Roller memory _rollerNow,
             Roller memory _rollerThen ) = scry(
                 brrrrdRollers,
-                brrrrdCycloid,
+                _brrrrdCycloid,
                 brrrrdWindowMacro
             );
 
@@ -157,31 +162,48 @@ abstract contract OverlayV1Comptroller {
       @return impact_ A factor between zero and one to be applied to initial
      */
     function intake (
-      bool _isLong,
+        bool _isLong,
         uint _oi,
-        uint _cap
+        uint _cap,
+        uint8 _impactCycloid,
+        uint8 _brrrrdCycloid,
+        uint32 _brrrrdFiling
     ) internal returns (
-        uint impact_
+        uint impact_,
+        uint8 impactCycloid_,
+        uint8 brrrrdCycloid_,
+        uint32 brrrrdFiling_
     ) {
 
-        // Call to internal contract function
-        (   Roller memory _rollerImpact,
-            uint _lastMoment,
-            uint _impact ) = _intake(_isLong, _oi, _cap);
+        uint _lastMoment;
+        Roller memory _rollerNow;
 
         // Call to internal contract function
-        impactCycloid = roll(
+        (   _rollerNow,
+            _lastMoment,    
+            impact_ ) = _intake(
+                _isLong, 
+                _oi, 
+                _cap,
+                _impactCycloid );
+
+        // Call to internal contract function
+        impactCycloid_ = roll(
             impactRollers,
-            _rollerImpact,
-            _lastMoment,
-            impactCycloid
+            _rollerNow,
+            _impactCycloid,
+            _lastMoment
         );
 
-        // Call to Math contract function
-        impact_ = _oi.mulUp(_impact);
 
         // Call to internal contract function
-        brrrr( 0, impact_ );
+        (   brrrrdCycloid_,
+            brrrrdFiling_   ) = brrrr( 
+            0, 
+            impact_,
+            _brrrrdCycloid,
+            _brrrrdFiling
+        );
 
     }
 
@@ -212,7 +234,8 @@ abstract contract OverlayV1Comptroller {
     function _intake (
         bool _isLong,
         uint _oi,
-        uint _cap
+        uint _cap,
+        uint8 _impactCycloid
     ) internal view returns (
         Roller memory rollerNow_,
         uint lastMoment_,
@@ -224,14 +247,14 @@ abstract contract OverlayV1Comptroller {
             Roller memory _rollerNow,
             Roller memory _rollerImpact ) = scry(
                 impactRollers,
-                impactCycloid,
+                _impactCycloid,
                 impactWindow );
 
         // Call to Math contract function
-        uint _pressure = _oi.divDown(_cap);
+        uint __pressure = _oi.divDown(_cap);
 
-        if (_isLong) _rollerNow.ying += _pressure;
-        else _rollerNow.yang += _pressure;
+        if (_isLong) _rollerNow.ying += __pressure;
+        else _rollerNow.yang += __pressure;
 
         // Call to Math contract function
         uint _power = lmbda.mulDown(_isLong
@@ -243,12 +266,42 @@ abstract contract OverlayV1Comptroller {
         rollerNow_ = _rollerNow;
 
         // Call to Math contract function
-        impact_ = _pressure != 0
-            ? ONE.sub(INVERSE_E.powUp(_power))
-            : 0;
+        impact_ = __pressure == 0 ? 0
+            : _oi.mulUp(ONE.sub(INVERSE_E.powUp(_power)));
 
     }
 
+    function oiCap () public virtual view returns (uint cap_);
+    
+    function _oiCap (
+        uint _depth,
+        uint8 _brrrrdCycloid
+    ) internal virtual view returns (
+        uint cap_
+    ) {
+
+        (   uint _brrrrd,
+            uint _antiBrrrrd ) = getBrrrrd(_brrrrdCycloid);
+
+        uint _brrrrdExpected = brrrrdExpected;
+
+        bool _burnt;
+        bool _expected;
+        bool _surpassed;
+        if (_brrrrd < _antiBrrrrd) _burnt = true;
+        else {
+            _brrrrd -= _antiBrrrrd;
+            _expected = _brrrrd < _brrrrdExpected;
+            _surpassed = _brrrrd > _brrrrdExpected * 2;
+        }
+
+        cap_ = _surpassed ? 0 : _burnt || _expected
+            ? _computeOiCap(false, _depth, staticCap, 0, 0)
+            : _computeOiCap(true, _depth, staticCap, _brrrrd, _brrrrdExpected);
+
+    }
+
+    
 
   /**
     @notice Internal function to compute open interest cap for the market.
@@ -263,7 +316,7 @@ abstract contract OverlayV1Comptroller {
     the dynamic cap, only passed if printing has occurred
     @return cap_ The open interest cap for the market
    */
-    function _oiCap (
+    function _computeOiCap (
         bool _dynamic,
         uint _depth,
         uint _staticCap,
@@ -279,43 +332,6 @@ abstract contract OverlayV1Comptroller {
             cap_ = Math.min(_staticCap, Math.min(_dynamicCap, _depth));
 
         } else cap_ = Math.min(_staticCap, _depth);
-
-    }
-
-
-  /**
-    @notice Public function to compute open interest cap for the market.
-    @dev Calls internal function _oiCap to determine the cap relative to depth
-    @dev and dynamic or static
-    @dev Calls internal contract function: getBrrrrd, _oiCap
-    @return cap_ The open interest cap for the market
-   */
-    function oiCap () public virtual view returns (
-        uint cap_
-    ) {
-
-        // Necessary to get OI cap
-        // Calls internal contract function
-        (   uint _brrrrd,
-            uint _antiBrrrrd ) = getBrrrrd();
-
-        uint _brrrrdExpected = brrrrdExpected;
-
-        bool _burnt;
-        bool _expected;
-        bool _surpassed;
-
-        if (_brrrrd < _antiBrrrrd) _burnt = true;
-        else {
-            _brrrrd -= _antiBrrrrd;
-            _expected = _brrrrd < _brrrrdExpected;
-            _surpassed = _brrrrd > _brrrrdExpected * 2;
-        }
-
-        // Calls internal contract function
-        cap_ = _surpassed ? 0 : _burnt || _expected
-            ? _oiCap(false, depth(), staticCap, 0, 0)
-            : _oiCap(true, depth(), staticCap, _brrrrd, brrrrdExpected);
 
     }
 
@@ -339,17 +355,23 @@ abstract contract OverlayV1Comptroller {
         uint _ovlPrice
     ) public virtual view returns (uint depth_);
 
-
     function pressure (
         bool _isLong,
         uint _oi,
         uint _cap
+    ) public view virtual returns (uint pressure_);
+
+    function _pressure (
+        bool _isLong,
+        uint _oi,
+        uint _cap,
+        uint8 _impactCycloid
     ) public view returns (uint pressure_) {
         (   ,
             Roller memory _rollerNow,
             Roller memory _rollerImpact ) = scry(
                 impactRollers,
-                impactCycloid,
+                _impactCycloid,
                 impactWindow );
 
         pressure_ = (_isLong
@@ -367,15 +389,12 @@ abstract contract OverlayV1Comptroller {
         uint _cap
     ) public view returns (uint impact_) {
 
-        uint _pressure = pressure(_isLong, _oi, _cap);
+        uint __pressure = pressure(_isLong, _oi, _cap);
 
-        uint _power = lmbda.mulDown(_pressure);
+        uint _power = lmbda.mulDown(__pressure);
 
-        uint _impact = _pressure != 0
-            ? ONE.sub(INVERSE_E.powUp(_power))
-            : 0;
-
-        impact_ = _oi.mulUp(_impact);
+        uint _impact = __pressure == 0 ? 0
+            : _oi.mulUp(ONE.sub(INVERSE_E.powUp(_power)));
 
     }
 
@@ -397,10 +416,10 @@ abstract contract OverlayV1Comptroller {
     function roll (
         Roller[60] storage rollers,
         Roller memory _roller,
-        uint _lastMoment,
-        uint _cycloid
+        uint8 _cycloid,
+        uint _lastMoment
     ) internal returns (
-        uint cycloid_
+        uint8 cycloid_
     ) {
 
         if (_roller.time != _lastMoment) {

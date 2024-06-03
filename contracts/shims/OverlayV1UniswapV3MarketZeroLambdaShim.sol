@@ -31,9 +31,24 @@ contract OverlayV1UniswapV3MarketZeroLambdaShim is OverlayV1UniswapV3Market {
     ) { }
 
 
-    function update () public virtual override returns (uint cap_) {
+    function _update (
+        uint32 _updated,
+        uint32 _compounded,
+        uint8 _brrrrdCycloid
+    ) internal virtual override returns (
+        uint cap_,
+        uint32 updated_,
+        uint32 compounded_
+    ) {
 
-        cap_ = super.update();
+        (   cap_,
+            updated_,
+            compounded_ ) = super._update(
+                _updated,
+                _compounded,
+                _brrrrdCycloid
+            );
+
         cap_ = lmbda == 0 ? staticCap : cap_;
 
     }
@@ -47,6 +62,16 @@ contract OverlayV1UniswapV3MarketZeroLambdaShim is OverlayV1UniswapV3Market {
 
     }
 
+    function _oiCap (
+        uint _depth,
+        uint8 _brrrrdCycloid
+    ) internal override view returns (
+        uint cap_
+    ) {
 
+        cap_ = super._oiCap(_depth, _brrrrdCycloid);
+        cap_ = lmbda == 0 ? staticCap : cap_;
+
+    }
 
 }

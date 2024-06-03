@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 import "../libraries/FixedPoint.sol";
 
-contract OverlayV1OI {
+abstract contract OverlayV1OI {
 
     event log(string k , uint v);
 
@@ -11,8 +11,7 @@ contract OverlayV1OI {
 
     uint256 private constant ONE = 1e18;
 
-    uint256 public compoundingPeriod;
-    uint256 public compounded;
+    uint32 public compoundingPeriod;
 
     uint256 internal __oiLong__; // total long open interest
     uint256 internal __oiShort__; // total short open interest
@@ -25,12 +24,10 @@ contract OverlayV1OI {
     event FundingPaid(uint oiLong, uint oiShort, int fundingPaid);
 
     constructor (
-        uint256 _compoundingPeriod
+        uint32 _compoundingPeriod
     ) {
 
         compoundingPeriod = _compoundingPeriod;
-
-        compounded = block.timestamp;
 
     }
 
@@ -46,14 +43,14 @@ contract OverlayV1OI {
     /// the last time funding was compounded.
     /// @return tCompounding_ The current compounding epoch.
     function epochs (
-        uint _now,
-        uint _compounded
+        uint32 _now,
+        uint32 _compounded
     ) public view returns (
-        uint compoundings_,
-        uint tCompounding_
+        uint32 compoundings_,
+        uint32 tCompounding_
     ) {
 
-        uint _compoundPeriod = compoundingPeriod;
+        uint32 _compoundPeriod = compoundingPeriod;
 
         compoundings_ = ( _now - _compounded ) / _compoundPeriod;
 
@@ -237,21 +234,12 @@ contract OverlayV1OI {
     /// @return oiShort_ Current open interest on short side.
     /// @return oiLongShares_ Current open interest shares on the long side.
     /// @return oiShortShares_ Current open interest shares on the short side.
-    function oi () public view returns (
+    function oi () public view virtual returns (
         uint oiLong_,
         uint oiShort_,
         uint oiLongShares_,
         uint oiShortShares_
-    ) {
-
-        ( uint _compoundings, ) = epochs(block.timestamp, compounded);
-
-        (   oiLong_,
-            oiShort_,
-            oiLongShares_,
-            oiShortShares_ ) = _oi(_compoundings);
-
-    }
+    );
 
 
     /// @notice The current open interest on the long side.

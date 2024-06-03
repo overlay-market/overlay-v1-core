@@ -65,7 +65,7 @@ def test_impact_roller_expected_impact(comptroller):
     chain.mine(timedelta=ONE_BLOCK)
     comptroller.impactBatch([True], [1e18])
 
-    assert comptroller.impactCycloid() == 5
+    assert comptroller.tempo()[2] == 5
 
     assert comptroller.impactRollers(1)[1] / 1e18 == approx(1 * pressure)
     assert comptroller.impactRollers(2)[1] / 1e18 == approx(2 * pressure)

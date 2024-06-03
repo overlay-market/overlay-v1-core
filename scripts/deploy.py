@@ -151,7 +151,6 @@ def deploy_market(mothership, feed_depth, feed_market):
         PRICE_FRAME_CAP,
         SPREAD,
         UPDATE_PERIOD,
-        COMPOUND_PERIOD,
         IMPACT_WINDOW,
         LAMBDA,
         STATIC_CAP,

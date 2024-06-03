@@ -38,9 +38,9 @@ contract OverlayV1UniswapV3Market is OverlayV1Market {
     ) OverlayV1Market (
         _mothership
     ) OverlayV1Comptroller (
-        _microWindow
+        uint32(_microWindow)
     ) OverlayV1OI (
-        _microWindow
+        uint32(_microWindow)
     ) OverlayV1PricePoint (
         _priceFrameCap
     ) {

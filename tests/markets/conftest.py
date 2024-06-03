@@ -262,7 +262,6 @@ def comptroller(gov, feed_infos, token, feed_owner):
             5e18,                # price frame cap
             343454218783234,     # k
             .00573e18,           # spread
-            COMPOUND_PERIOD,     # compound period
             0,                   # lambda
             OI_CAP*1e18,         # oi cap
             BRRRR_EXPECTED,      # brrrr expected
@@ -306,7 +305,6 @@ def create_mothership(token, feed_infos, fees, alice, bob, gov, feed_owner,
                    [int]:   micro price window [uint256]
                    [int]:   k constant
                    [int]:   spread
-                   [int]:   compound period, 600s = 10 min
                    [int]:   lambda, 0
                    [int]:   OI cap
                    [int]:   Expected brrrr

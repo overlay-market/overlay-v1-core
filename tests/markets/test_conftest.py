@@ -56,10 +56,6 @@ def test_create_mothership(mothership, gov):
     Inputs:
         mothership  [ProjectContract]: OverlayV1Mothership contract instance
     '''
-    print(type(mothership))
-    print()
-    print(mothership.totalMarkets())
-    print()
 
     # Test `ovl` function returns an eth address
     assert isinstance(mothership.ovl(), EthAddress)
@@ -71,7 +67,6 @@ def test_create_mothership(mothership, gov):
 
     # RRQ: why doesn't this function exist if it is defined in
     # IOverlayMothership.sol
-    #  print(mothership.getGlobalParams())
 
     # Test mothership `getGlobalParams` external view function
     margin_burn_rate = 0.5e18
