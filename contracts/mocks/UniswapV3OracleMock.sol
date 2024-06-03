@@ -16,8 +16,8 @@ contract UniswapV3OracleMock {
     address immutable public token0;
     address immutable public token1;
 
-    Shim[65535] public shims;
-    OracleMock.Observation[65535] public observations;
+    Shim[65535] private shims;
+    OracleMock.Observation[65535] private observations;
 
     /**
       @notice TODO

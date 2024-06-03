@@ -49,17 +49,13 @@ def test_create_token(token, gov, alice, bob):
     print(token)
 
 
-def test_create_mothership(mothership, gov):
+def test_create_mothership(mothership, fees):
     '''
     TODO: ovl(), marketExists(), allMarkets(), totalMarkets()
     - check mothership events fired
     Inputs:
         mothership  [ProjectContract]: OverlayV1Mothership contract instance
     '''
-    print(type(mothership))
-    print()
-    print(mothership.totalMarkets())
-    print()
 
     # Test `ovl` function returns an eth address
     assert isinstance(mothership.ovl(), EthAddress)
@@ -76,14 +72,8 @@ def test_create_mothership(mothership, gov):
     # Test mothership `getGlobalParams` external view function
     margin_burn_rate = 0.5e18
     fee_burn_rate = 0.5e18
-    fee_to = '0x46C0a5326E643E4f71D3149d50B48216e174Ae84'
+    fee_to = fees
     expect = (margin_burn_rate, fee_burn_rate, fee_to)
 
     actual = mothership.getUpdateParams()
     assert actual == expect
-
-    #  eth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-    assert 523 == 523
-    #  assert 3 == 3
-    #  assert 5 == 5
-    #  assert 5 == 5
